@@ -25,8 +25,8 @@ document.getElementById('text').innerText = text;
 var comma = '';
 function addBook(){
   var sel = document.getElementById('books');
-  var yourPlan = document.getElementById('text').innerText;
-  document.getElementById('text').innerText = (yourPlan + comma + sel.value);
+  var yourPlan = document.getElementById('text').innerHtml;
+  document.getElementById('text').innerHtml = (yourPlan + comma + '<a href="#'>' + sel.value + '</a>');
   comma = ', ';
   return false;
 }
