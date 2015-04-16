@@ -22,9 +22,20 @@ text = text + dt.Lf[i].c[0].v + '\r\n';
 document.getElementById('text').innerText = text;
 //alert(dt.getValue(1,1));
 }
-
+function addBook(){
+  var sel = document.getElementById('books');
+  var yourPlan = document.getElementById('text').innerText;
+  document.getElementById('text').innerText = (yourPlan + sel.selectedValue);
+  return false;
+}
 </script>
 <div id="text">
 </div>
+<select id="books">
+  <option value="Genesis">Genesis</option>
+  <option value="Exodus">Exodus</option>
+</select>
+<a href="" onclick="return addBook();">+</a>
+  <option value="Exodus">Exodus</option>
 </body>
 </html>
