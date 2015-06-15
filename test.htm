@@ -3,8 +3,8 @@
 
 <script type="text/javascript" src="https://www.google.com/jsapi"></script>
 <script>
-google.load('visualization', '1');
-google.setOnLoadCallback(function() { sendAndDraw('') });
+//google.load('visualization', '1');
+//google.setOnLoadCallback(function() { sendAndDraw('') });
 
 function sendAndDraw(){
 var query = new google.visualization.Query('https://docs.google.com/spreadsheets/d/1vikGn4mdM7dcYcL2dM2_6U0eUiE2BO2cnojHYhzKmD8/edit?usp=sharing');
@@ -22,20 +22,21 @@ text = text + dt.Lf[i].c[0].v + '\r\n';
 document.getElementById('text').innerText = text;
 //alert(dt.getValue(1,1));
 }
+var comma = '';
 function addBook(){
   var sel = document.getElementById('books');
-  var yourPlan = document.getElementById('text').innerText;
-  document.getElementById('text').innerText = (yourPlan + sel.selectedValue);
+  var yourPlan = document.getElementById('text').innerHTML;
+  document.getElementById('text').innerHTML = (yourPlan + comma + '<a href="#">' + sel.value + '</a>');
+  comma = ', ';
   return false;
 }
 </script>
-<div id="text">
+<div id="text" style="font:bold 1.4em Helvetica;">
 </div>
 <select id="books">
   <option value="Genesis">Genesis</option>
   <option value="Exodus">Exodus</option>
 </select>
 <a href="" onclick="return addBook();">+</a>
-  <option value="Exodus">Exodus</option>
 </body>
 </html>
