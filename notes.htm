@@ -55,12 +55,14 @@ function CreateNote(wording){
   y = CalcVert(y);
   x = CalcHorz(y, x, CalcWidth(x, widths, lastColumnIx));
   
+  $('body').append(div);
+  widths[ix] = x + $(div).width() + 16;
+  
+  $(div).css('position', 'absolute');
   $(div).css('top', y);
   $(div).css('left', x);
   addY = 12;
-  
-  $('body').append(div);
-  widths[ix] = x + $(div).width() + 16;
+
   if (x > 0) lastColumnIx++;
 }
 function CalcWidth(x, widths, lastColumnIx){
@@ -85,10 +87,6 @@ function CalcHorz(y, x, nextX){
 <style>
 body{
   margin:0px;
-}
-div{
-  position:absolute;
-  width:auto;
 }
 #entry{
   border: 1px solid black;
