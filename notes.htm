@@ -41,10 +41,17 @@ $('input').change(function(){
   if (entry == '') return;
   CreateNote(entry);
   $('input').val('');
-  sep = ',';
+  
   var currentItems = localStorage.setItem('Unsaved',   localStorage.getItem('Unsaved') + sep + entry);
+  sep = ',';
   //alert(localStorage.getItem('Unsaved'));
-  $('#open').css('left', (widths.length > 0 ? widths[widths.length - 1] : 0));
+  var topMost = 0;
+if (lastColumnIx > 0){
+var total = widths.length - lastColumnIx - 1;
+var endPoint = lastColumnIx % total;
+topMost = widths.length - endPoint - 1;
+}
+$('#open').css('left', (widths.length > 0 ? widths[topMost] : 0));
 });
 var y = 0;
 var addY = 0;
@@ -54,7 +61,13 @@ var lastColumnIx = 0;
 for (var ix = 0; ix < items.length; ix++){
   CreateNote(items[ix]);
 }
-$('#open').css('left', (widths.length > 0 ? widths[widths.length - 1] : 0));
+var topMost = 0;
+if (lastColumnIx > 0){
+var total = widths.length - lastColumnIx - 1;
+var endPoint = lastColumnIx % total;
+topMost = widths.length - endPoint - 1;
+}
+$('#open').css('left', (widths.length > 0 ? widths[topMost] : 0));
 
 $('#open').show();
 
