@@ -59,7 +59,8 @@ function CreateNote(wording){
   widths[ix] = x + $(div).width() + 16;
   
   $(div).css('position', 'absolute');
-  $(div).css('width', widths[ix] - 16);
+  $(div).css('width', widths[ix] - x - 16);
+  $(div).css('height', 12);
   $(div).css('top', y);
   $(div).css('left', x);
   addY = 12;
