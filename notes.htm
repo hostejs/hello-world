@@ -49,7 +49,7 @@ $('input').change(function(){
 if (lastColumnIx > 0){
 var total = widths.length - lastColumnIx;
 var endPoint = widths.length % total;
-topMost = widths.length - endPoint + 1;
+topMost = widths.length - endPoint;
 }
 $('#open').css('left', (widths.length > 0 ? widths[topMost] : 0));
 });
@@ -64,8 +64,8 @@ for (var ix = 0; ix < items.length; ix++){
 var topMost = 0;
 if (lastColumnIx > 0){
 var total = widths.length - lastColumnIx;
-var endPoint = lastColumnIx % total;
-topMost = widths.length - endPoint + 1;
+var endPoint = widths.length % total;
+topMost = widths.length - endPoint;
 }
 $('#open').css('left', (widths.length > 0 ? widths[topMost] : 0));
 
