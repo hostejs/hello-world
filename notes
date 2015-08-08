@@ -1,0 +1,104 @@
+<html>
+<head>
+<script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
+<script>
+var items = ['this is a test note', 'this is note2', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x'];
+var widths = [];
+$('#entry').hide();
+$('#open').hide();
+var exWork = localStorage.getItem('Unsaved');
+if (exWork){
+  var convert = exWork.split(',');
+  for (var i = 0; i < convert.length; i++){
+    items[items.length] = convert[i];
+  }
+}
+else
+  localStorage.setItem('Unsaved', '');
+var sep = '';
+$('input').change(function(){
+  var entry = $('input').val().trim();
+  if (entry == '') return;
+  CreateNote(entry);
+  $('input').val('');
+  sep = ',';
+  var currentItems = localStorage.setItem('Unsaved',   localStorage.getItem('Unsaved') + sep + entry);
+  //alert(localStorage.getItem('Unsaved'));
+  $('#open').css('left', (widths.length > 0 ? widths[widths.length - 1] : 0));
+});
+var y = 0;
+var addY = 0;
+var x = -1;
+var lastColumnIx = 0;
+
+for (var ix = 0; ix < items.length; ix++){
+  CreateNote(items[ix]);
+}
+$('#open').css('left', (widths.length > 0 ? widths[widths.length - 1] : 0));
+
+$('#open').show();
+
+function open(){
+  $('#open').hide();
+  $('#entry').show();
+}
+function close(){
+  $('#open').show();
+  $('#entry').hide();
+}
+function CreateNote(wording){
+  y += addY;
+  var div = document.createElement('div');
+  $(div).html(wording);
+  
+  y = CalcVert(y);
+  x = CalcHorz(y, x, CalcWidth(x, widths, lastColumnIx));
+  
+  $(div).css('top', y);
+  $(div).css('left', x);
+  addY = 12;
+  
+  $('body').append(div);
+  widths[ix] = x + $(div).width() + 16;
+  if (x > 0) lastColumnIx++;
+}
+function CalcWidth(x, widths, lastColumnIx){
+  if (x == -1){
+    return 0;
+  }
+  return widths[lastColumnIx];
+}
+function CalcVert(y){
+  if ((y + 10) > window.innerHeight){
+    y = 0;
+  }
+  return y;
+}
+function CalcHorz(y, x, nextX){
+  if (y == 0){
+    return nextX;
+  }
+  return x;
+}
+</script>
+<style>
+body{
+  margin:0px;
+}
+div{
+  position:absolute;
+}
+#entry{
+  border: 1px solid black;
+  padding: 8px;
+}
+</style>
+</head
+  <body>
+    <div id='entry'>
+      <input type='text'/>
+      <a href='javascript:close();'>X</a>
+    </div>
+    <div id='open'><a href='javascript:open();'>O</a></div>
+  </body>
+</html>
