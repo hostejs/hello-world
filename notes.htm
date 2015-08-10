@@ -55,6 +55,11 @@ $('input').change(function(){
   }
   $('#open').css('left', (widths.length > 0 ? widths[topMost] : 0));
 });
+$('input').keypress(function( event ) {
+  if ( event.which == 13 ) {
+     alert('mess');
+  }
+}
 var y = 0;
 var addY = 0;
 var x = -1;
