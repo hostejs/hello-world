@@ -11,6 +11,7 @@ div{
 #entry{
   border: 1px solid black;
   padding: 8px;
+  z-index:99;
 }
 </style>
 </head>
@@ -22,10 +23,11 @@ div{
     <div id='open'><a href='javascript:open();'>O</a></div>
   <script type='text/javascript'>
 
-var items = ['this is a test note', 'this is note2', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x'];
+var items = [];
 var widths = [];
 $('#entry').hide();
 $('#open').hide();
+var allottedHeight = window.innerHeight;
 var exWork = localStorage.getItem('Unsaved');
 if (exWork){
   var convert = exWork.split(',');
@@ -46,12 +48,12 @@ $('input').change(function(){
   sep = ',';
   //alert(localStorage.getItem('Unsaved'));
   var topMost = 0;
-if (lastColumnIx > 0){
-var total = widths.length - lastColumnIx;
-var endPoint = widths.length % total;
-topMost = widths.length - endPoint;
-}
-$('#open').css('left', (widths.length > 0 ? widths[topMost] : 0));
+  if (lastColumnIx > 0){
+    var total = widths.length - lastColumnIx;
+    var endPoint = widths.length % total;
+    topMost = widths.length - endPoint;
+  }
+  $('#open').css('left', (widths.length > 0 ? widths[topMost] : 0));
 });
 var y = 0;
 var addY = 0;
@@ -89,10 +91,11 @@ function CreateNote(wording){
   
   $('body').append(div);
   widths[ix] = x + $(div).width() + 16;
-  
-  //$(div).css('position', 'absolute');
-  //$(div).css('width', widths[ix] - x - 16);
-  //$(div).css('height', 12);
+  div.addEventListener("click", function( event ) {
+    if (window.confirm("This will delete the item, OK?")) {
+      $(div).remove();
+    }
+  }, false);
   $(div).css('top', y);
   $(div).css('left', x);
   addY = 12;
@@ -106,7 +109,7 @@ function CalcWidth(x, widths, lastColumnIx){
   return widths[lastColumnIx];
 }
 function CalcVert(y){
-  if ((y + 10) > window.innerHeight){
+  if ((y + 10) > allottedHeight){
     y = 0;
   }
   return y;
