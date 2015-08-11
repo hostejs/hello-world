@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title></title>
+    <script src="https://code.jquery.com/jquery-3.0.0-alpha1.js"></script>
+    <style>
+        body {
+            margin: 0px;
+        }                
+        .entryModal {
+            border: 1px solid black;
+            padding: 8px;
+            z-index: 10001;
+            background-color:white;
+        }
+        .modalBackground {background-color:gray;filter:alpha(opacity=15);opacity:0.15;}
+        .modalMask {
+            top: 0px;
+            left: 0px;
+            right: 0px;
+            bottom: 0px;
+            z-index: 10000;
+        }
+        .hidden{
+            display:none;
+        }
+        .layout-pos{
+            position:absolute;
+        }
+        .wait-loader{            
+            z-index:10001;            
+        }        
+        .module{            
+            top:0px;
+            left:0px;
+        }
+    </style>
+</head>
+<body>
+    <div id="dvLoading" class="wait-loader layout-pos hidden"><img src="/EntFiles/images/ajax-loader-flower.gif" /> Loading...</div>
+    <div id="dvMask" class="modalMask modalBackground layout-pos hidden">&nbsp;</div>
+    <div id="entry" class="entryModal layout-pos hidden">
+        <input type="text" />
+        <a href="javascript:close();">X</a>
+    </div>  
+    <div id="open" class="hidden"><a href="javascript:open();">O</a></div>  
+    <div class="module layout-pos" id="pri"></div>
+    <div class="module layout-pos" id="dow"></div>
+    <div class="module layout-pos" id="lc"></div>
+    <script type='text/javascript'>
+        var lineHeight = 0;
+        var y = 0;
+        var addY = 0;
+        var x = -1;
+        var lastColumnIx = 0;
+
+        var items = [];
+        var widths = [];
+
+        var kind = window.prompt('Enter type:', 'pri');
+        var allottedHeight = window.innerHeight;
+        
+        $(readyFn);
+
+        function readyFn() {
+            var modules = $.map($('.module'), function (n, i) { return n.id; });
+
+            var numKinds = modules.length;
+
+            // make this into valid json format
+            if (kind != 'pri') {
+                numKinds = 1;
+                modules = [kind];
+            }
+
+            for (var m = 0; m < numKinds; m++) {
+                var exWork = localStorage.getItem('hoste.' + modules[m]);
+                if (exWork) {
+                    items[modules[m]] = JSON.parse(exWork);
+                }
+                else if (modules[m] == kind) {
+                    items[kind] = [];
+                    localStorage.setItem('hoste.' + kind, '');
+                }
+                else {
+                    items[modules[m]] = [];
+                }
+            }
+
+            var shiftList = []
+            var ix = 0;
+            var xx = 0;
+            for (var m = 0; m < numKinds; m++) {
+                xx = 0;
+                while (xx < items[modules[m]].length) {
+                    if (items[modules[m]][xx]) {
+                        if (modules[m] == kind) {
+                            shiftList[ix] = items[kind][ix];
+                            ix++;
+                        }
+                        CreateNote(items[modules[m]][xx], (modules[m] == kind));
+                    }
+                    xx++;
+                }
+            }
+
+            var topMost = 0;
+            if (lastColumnIx > 0) {
+                var total = widths.length - lastColumnIx;
+                var endPoint = widths.length % total;
+                topMost = widths.length - endPoint;
+            }
+
+            $('#open').css('left', (widths.length > 0 ? widths[topMost] : 0) + 'px');
+            $('#open').css('top', '0px');
+            $('#open').css('z-index', '9999');
+            $('#open').removeClass('hidden');
+            $('#open').css('position', 'absolute');
+
+            items[kind] = shiftList;
+            localStorage.setItem('hoste.' + kind, JSON.stringify(shiftList));
+        }
+
+        function CreateNote(wording, isKind) {
+            y += addY;
+            var div = document.createElement('div');
+            $(div).addClass('noteEntry');
+            $(div).prop('data-id', (isKind ? widths.length : -1));
+            $(div).html(wording);
+
+            y = CalcVert(y);
+            x = CalcHorz(y, x, CalcWidth(x, widths, lastColumnIx));
+            $('#' + kind).append(div);
+
+            widths[widths.length] = x + $(div).width() + 16;
+
+            div.addEventListener("click", function (event) {
+                if (window.confirm("This will delete the item, OK?")) {
+                    $(div).remove();
+                    if ($(div).prop('data-id') != -1) {
+                        items[kind][$(div).prop('data-id')] = '';
+                        localStorage.setItem('hoste.' + kind, JSON.stringify(items[kind]));
+                    }
+                }
+            }, false);
+            $(div).css('top', y);
+            $(div).css('left', x);
+
+            if (lineHeight == 0) lineHeight = $(div).height();
+
+            addY = lineHeight;
+            if (x > 0) lastColumnIx++;
+        }
+
+        function CalcWidth(x, widths, lastColumnIx) {
+            if (x == -1) {
+                return 0;
+            }
+            return widths[lastColumnIx];
+        }
+        function CalcVert(y) {
+            if ((y + 10) > allottedHeight) {
+                y = 0;
+            }
+            return y;
+        }
+        function CalcHorz(y, x, nextX) {
+            if (y == 0) {
+                return nextX;
+            }
+            return x;
+        }
+
+        function open() {
+            $('#open').addClass('hidden');
+            $('#dvMask').removeClass('hidden');
+            $('#open').removeClass('layoutPos');
+            $('#entry').removeClass('hidden');
+            $('input').focus();
+
+            $('input').on('blur', function (e) {
+                var entry = $('input').val().trim();
+                if (entry != '') {
+                    var theList = items[kind];
+                    CreateNote(entry, true);
+
+                    $('input').val('');
+
+                    theList[theList.length] = entry;
+                    localStorage.setItem('hoste.' + kind, JSON.stringify(theList));
+
+                    var topMost = 0;
+                    if (lastColumnIx > 0) {
+                        var total = widths.length - lastColumnIx;
+                        var endPoint = widths.length % total;
+                        topMost = widths.length - endPoint;
+                    }
+                    $('#open').css('left', (widths.length > 0 ? widths[topMost] : 0) + 'px');
+                }
+                e.preventDefault();
+                $(this).focus();
+            });
+        }
+
+        function close() {
+            $('#open').removeClass('hidden');
+            $('#dvMask').addClass('hidden');
+            $('#open').addClass('layoutPos');
+            $('#entry').addClass('hidden');
+            $('body').focus();            
+        }
+    </script>
+</body>
+</html>
