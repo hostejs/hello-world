@@ -1,0 +1,208 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <script>
+        function GiveFocus() {            
+            //document.getElementsByTagName('textarea')[0].style.height = (window.innerHeight - 68) + "px";
+            //document.getElementsByTagName('textarea')[0].style.width = (window.innerWidth - 6) + "px";
+            document.onclick = function () { document.getElementsByTagName('input')[0].focus(); };
+            document.getElementsByTagName('textarea')[0].style.width = window.innerWidth + "px";
+            document.getElementsByTagName('input')[0].style.height = "60px";
+            document.getElementsByTagName('input')[0].style.width = window.innerWidth + "px";
+            document.getElementsByTagName('input')[0].focus();
+
+            /*
+            var save = function () { alert('save'); return false; /* need to ignore repeats* /};
+            var load = function () { alert('load'); return false; };
+            var def = function (){ };
+            
+            // Dispatch table or object literal lookups
+            function ShortcutDispatcher(key) {
+                var keyTable = {
+                    83: save,
+                    79: load
+                };
+                return (keyTable[key] || def)();
+            }
+            var is = function (isCtrl, key) {
+                return {
+                    'true': ShortcutDispatcher,
+                    'false': def
+                }[isCtrl](key);
+            }*/
+            
+
+            document.onkeydown = function (e) {
+
+
+                //alert(e.keyCode); 
+
+
+                if (e.ctrlKey && e.keyCode == 83) {
+
+                    //alert('hi');
+                    return SaveFileHandler();
+
+
+                }
+
+
+                //return is(e.ctrlKey, e.keyCode);                                 
+
+
+            };
+
+        }
+
+        function doalert() {
+            alert('hi');
+        }
+        function SaveFileHandler() {
+
+
+            var submittedEntryField = document.getElementsByTagName('textarea')[0];
+
+
+            if (submittedEntryField.value.length == 0) {/*Nothing there*/ return false; }
+            var text = submittedEntryField.value;//{ type: 'text/plain' }
+            alert(text);
+            var blob = new Blob([text.replace(/\n/g, "\r\n")], { type: "text/plain;charset=utf-8" });
+
+            
+            window.navigator.msSaveBlob(blob, 'msSaveBlob_testFile.txt');
+            
+            /*
+            https://thiscouldbebetter.wordpress.com/2012/12/18/loading-editing-and-saving-a-text-file-in-html5-using-javascrip/
+            https://github.com/eligrey/FileSaver.js/
+            https://msdn.microsoft.com/en-us/library/hh779016(v=vs.85).aspx
+            https://msdn.microsoft.com/en-us/library/hh779017(v=vs.85).aspx
+            https://msdn.microsoft.com/en-us/library/hh580308(v=vs.85).aspx
+            https://msdn.microsoft.com/en-us/library/hh580307(v=vs.85).aspx
+            http://hackworthy.blogspot.com/2012/05/savedownload-data-generated-in.html
+            https://www.sitepoint.com/get-loaded-with-the-file-api/
+            I think you can use this shim function rather than the thingie below to handle other browsers
+            https://gist.github.com/MrSwitch/3552985
+
+            function saveTextAsFile()
+            {
+                var textToSave = document.getElementById("inputTextToSave").value;
+                var textToSaveAsBlob = new Blob([textToSave], {type:"text/plain"});
+                var textToSaveAsURL = window.URL.createObjectURL(textToSaveAsBlob);
+                var fileNameToSaveAs = document.getElementById("inputFileNameToSaveAs").value;
+ 
+                var downloadLink = document.createElement("a");
+                downloadLink.download = fileNameToSaveAs;
+                downloadLink.innerHTML = "Download File";
+                downloadLink.href = textToSaveAsURL;
+                downloadLink.onclick = destroyClickedElement;
+                downloadLink.style.display = "none";
+                document.body.appendChild(downloadLink);
+ 
+                downloadLink.click();
+            }
+ 
+            function destroyClickedElement(event)
+            {
+                document.body.removeChild(event.target);
+            }
+ 
+            function loadFileAsText()
+            {
+                var fileToLoad = document.getElementById("fileToLoad").files[0];
+ 
+                var fileReader = new FileReader();
+                fileReader.onload = function(fileLoadedEvent) 
+                {
+                    var textFromFileLoaded = fileLoadedEvent.target.result;
+                    document.getElementById("inputTextToSave").value = textFromFileLoaded;
+                };
+                fileReader.readAsText(fileToLoad, "UTF-8");
+            }            
+            */
+            return false;
+
+
+        }
+
+        function LineInputListener(e) {
+            if (e.keyCode == 13 && !e.shiftKey) {
+                LineInputHandler();
+            }
+        }
+
+        function LineInputHandler() {
+            var submittedEntryField = document.getElementsByTagName('textarea')[0];
+            var entryField = document.getElementsByTagName('input')[0];
+            if (entryField.value.length == 0) {
+                entryField.data_LF = true;                                
+            }
+            else {                
+                var separatorEntry = ',';
+                if (submittedEntryField.value.length == 0){
+                    separatorEntry = '';
+                }
+                else if (entryField.data_LF) {                    
+                    separatorEntry = '\n';
+
+                    if ((submittedEntryField.clientHeight + (submittedEntryField.clientHeight / submittedEntryField.rows)) <= window.innerHeight) {
+                        submittedEntryField.rows = submittedEntryField.rows + 1;
+                    }
+                }
+                entryField.data_LF = false;
+
+                submittedEntryField.value = submittedEntryField.value + separatorEntry + entryField.value;
+            }
+            entryField.value = "";
+        }
+
+
+
+        function suppress(e){
+            if (e.keyCode == 13 && !e.shiftKey)
+            {                
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        /*
+        function Allow(e) {
+            if (e.keyCode == 13 && !e.shiftKey) {
+                var elm = document.getElementsByTagName('textarea')[0];
+                if (elm.value.length == 0) {
+                    elm.value = document.getElementsByTagName('input')[0].value;
+                }
+                else {
+                    elm.rows = elm.rows + 1;
+                    elm.value = elm.value + "\n" + document.getElementsByTagName('input')[0].value;
+                }
+                
+                document.getElementsByTagName('input')[0].value = "";
+            }
+        } */       
+        
+        function NoBubble(e) {
+            e = event || window.event; // cross-browser event
+    
+            if (e.stopPropagation) {
+                // W3C standard variant
+                e.stopPropagation();
+            } else {
+                //IE variant
+                e.cancelBubble = true;
+            }
+        }
+
+
+        //<div style="background-color:green;width:60px;height:60px;border:0px;position:absolute;bottom:60px;right:0px;"></div>
+    </script>
+        </head>
+        <body onload="GiveFocus();">
+            
+            <textarea style="bottom:61px;left:0px;position:fixed;border-top:0px;border-left:0px;border-right:0px;overflow-y:auto;" wrap="off" rows="1" onkeypress="suppress(event);" onclick="NoBubble(event);"></textarea>
+            <input type="text" style="border:0px;bottom:0;left:0;position:fixed;" onkeypress="LineInputListener(event);" />            
+        </body>
+</html>
