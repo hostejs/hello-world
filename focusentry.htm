@@ -5,32 +5,30 @@
     <meta charset="utf-8" />
     <title></title>
     <style>
-        #overlay {
-             visibility: hidden;
-             position: absolute;
+        #overlay {             
+             position: fixed;
              left: 0px;
              top: 0px;
-             width:100%;
-             height:100%;
+             right:0px;
+             bottom:0px;
              text-align:center;
-             z-index: 1000;
+             z-index:1000;             
+             background-color:black;
+             opacity:0.4;
         }
 
-        #overlay div {
-             width:300px;
+        #overlay div {             
+             width:500px;
              margin: 100px auto;
              background-color: #fff;
-             border:1px solid #000;
+             border:1px solid #4cff00;
              padding:15px;
              text-align:center;
-        }
-        /*
-            body {
-     height:100%;
-     margin:0;
-     padding:0;
-}
-        */
+        } 
+        
+        .closed{
+            display:none;
+        }       
     </style>
     <script>
         function GiveFocus() {            
@@ -38,10 +36,9 @@
             //document.getElementsByTagName('textarea')[0].style.width = (window.innerWidth - 6) + "px";
             document.onclick = function () { document.getElementsByTagName('input')[0].focus(); };
             document.getElementsByTagName('textarea')[0].style.width = window.innerWidth + "px";
-            document.getElementsByTagName('input')[0].style.height = "60px";
-            document.getElementsByTagName('input')[0].style.width = window.innerWidth + "px";
-            document.getElementsByTagName('input')[0].focus();
-
+            document.getElementsByClassName('input')[0].style.height = "60px";
+            document.getElementsByClassName('input')[0].style.width = window.innerWidth + "px";
+            document.getElementsByClassName('input')[0].focus();
             document.querySelector('input[type=file]').onchange = function (e) { loadFileAsText(e.target.files[0]); }
 
             /*
@@ -77,7 +74,8 @@
                         //alert('hi');
                         return SaveFileHandler();
                     }
-                    if (e.keyCode == 79) {
+                    
+                    if (e.keyCode == 76) {
                         return overlay();
                     }
 
@@ -94,9 +92,10 @@
         //https://raventools.com/blog/create-a-modal-dialog-using-css-and-javascript/
         //https://codepen.io/maccadb7/pen/nbHEg
         //http://www.hongkiat.com/blog/html5-dialog-window/
+        //https://www.kirupa.com/html5/setting_css_styles_using_javascript.htm
         function overlay() {
-            var el = document.getElementById("overlay");
-            el.style.visibility = (el.style.visibility == "visible") ? "hidden" : "visible";
+            var ell = document.getElementById("overlay").classList;            
+            ell.contains('closed') ? ell.remove('closed') : ell.add('closed');
             return false;
         }
                 
@@ -194,7 +193,7 @@
 
         function LineInputHandler() {
             var submittedEntryField = document.getElementsByTagName('textarea')[0];
-            var entryField = document.getElementsByTagName('input')[0];
+            var entryField = document.getElementsByClassName('input')[0];
             if (entryField.value.length == 0) {
                 entryField.data_LF = true;                                
             }
@@ -267,8 +266,8 @@
     </script>
         </head>
         <body onload="GiveFocus();">
-            <div id="overlay"><div><input type="file" /></div></div>
+            <div id="overlay" class="closed"><div><span><input type="file"></span></div></div>
             <textarea style="bottom:61px;left:0px;position:fixed;border-top:0px;border-left:0px;border-right:0px;overflow-y:auto;" wrap="off" rows="1" onkeypress="suppress(event);" onclick="NoBubble(event);"></textarea>
-            <input type="text" style="border:0px;bottom:0;left:0;position:fixed;" onkeypress="LineInputListener(event);" />            
+            <input class="input" type="text" style="border:0px;bottom:0;left:0;position:fixed;" onkeypress="LineInputListener(event);" />            
         </body>
 </html>
