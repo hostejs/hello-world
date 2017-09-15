@@ -15,7 +15,7 @@
       alert('plan');
       var yearPace = 0;
       for (var i = 0; i < BibleTable.length; i++){
-        for (var y = 0; y < BibleTable[i].chapters[y].length; y++){
+        for (var y = 0; y < BibleTable[i].chapters.length; y++){
           yearPace += BibleTable[i].chapters[y];
         }
       }
@@ -27,7 +27,7 @@
 
       var lines = 0;
       for(var k=0; k < 1; k++){
-        for(var l=0; l < BibleTable[k].chapters[l].length; l++){
+        for(var l=0; l < BibleTable[k].chapters.length; l++){
           var chap = 0;
           while (chap < BibleTable[k].chapters[l]){
             planLines[lines] = BibleTable[k].abbr + ' ' (l + 1) + ':' + (chap + 1) + ' - ' + (l + 1) + ':' + (chap + pace);
@@ -42,7 +42,7 @@
       document.getElementById('plan').value = planLines.join();
     }
   </script>
-  <body>1
+  <body>2
     <input type="button" value="plan" onclick="setplan();"/><br/>
     <select id="books">
       <option>Gen</option>
