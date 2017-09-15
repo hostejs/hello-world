@@ -10,8 +10,25 @@
       }
       document.getElementById('ta').value = JSON.stringify(myobj);
     }
+    function setplan(){
+      var yearPace = 0;
+      for (var i = 0; i < tabl.length; i++){
+        for (var y = 0; y < tabl[i].chapters[y].length; y++){
+          yearPace += tabl[i].chapters[y];
+        }
+      }
+      yearPace = Math.round(yearPace / 365);
+      alert(yearPace);
+    }
   </script>
   <body>
+    <input type="button" value="plan" onclick="setplan();"/><br/>
+    <select id="books">
+      <option>Gen</option>
+      
+    </select>
+    <input type="text" id="pace"/><br/>
+    <textarea id="plan" cols="100" rows="10"></textarea>
     <input type="button" value="read" onclick="parseinputs();"/><br/>
     <textarea id="ta" cols="100" rows="30"></textarea>
   </body>
