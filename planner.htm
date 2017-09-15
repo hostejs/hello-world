@@ -31,10 +31,13 @@
             planLines[lines] = BibleTable.abbr + ' ' (l + 1) + ':' + (chap + 1) + '-' + (l + 1) + ':' + (chap + pace);
             chap = chap + pace;
             lines++;
+            planLines[lines] = '\r\n';
+            lines++;
           }
         
         }
       }
+      document.getElementById('plan').value = planLines.join();
     }
   </script>
   <body>
