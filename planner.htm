@@ -12,13 +12,29 @@
     }
     function setplan(){
       var yearPace = 0;
-      for (var i = 0; i < tabl.length; i++){
-        for (var y = 0; y < tabl[i].chapters[y].length; y++){
-          yearPace += tabl[i].chapters[y];
+      for (var i = 0; i < BibleTable.length; i++){
+        for (var y = 0; y < BibleTable[i].chapters[y].length; y++){
+          yearPace += BibleTable[i].chapters[y];
         }
       }
       yearPace = Math.round(yearPace / 365);
       alert(yearPace);
+      
+      var pace = 1;
+      var planLines = [];
+
+      var lines = 0;
+      for(var k=0; k < 1; k++){
+        for(var l=0; l < BibleTable.chapters[l].length; l++){
+          var chap = 0;
+          while (chap < BibleTable.chapters[l]){
+            planLines[lines] = BibleTable.abbr + ' ' (l + 1) + ':' + (chap + 1) + '-' + (l + 1) + ':' + (chap + pace);
+            chap = chap + pace;
+            lines++;
+          }
+        
+        }
+      }
     }
   </script>
   <body>
