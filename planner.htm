@@ -16,7 +16,7 @@
       var yearPace = 0;
       for (var i = 0; i < BibleTable.length; i++){
         for (var y = 0; y < BibleTable[i].chapters.length; y++){
-          yearPace += BibleTable[i].chapters[y];
+          yearPace += parseInt(BibleTable[i].chapters[y]);
         }
       }
       yearPace = Math.round(yearPace / 365);
@@ -29,7 +29,8 @@
       for(var k=0; k < 1; k++){
         for(var l=0; l < BibleTable[k].chapters.length; l++){
           var chap = 0;
-          while (chap < BibleTable[k].chapters[l]){
+          var vers = parseInt(BibleTable[k].chapters[l]);
+          while (chap < vers){
             planLines[lines] = BibleTable[k].abbr + ' ' (l + 1) + ':' + (chap + 1) + ' - ' + (l + 1) + ':' + (chap + pace);
             chap = chap + pace;
             lines++;
