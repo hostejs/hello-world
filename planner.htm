@@ -30,6 +30,7 @@
         for(var l=0; l < BibleTable[k].chapters.length; l++){
           var chap = 0;
           var vers = parseInt(BibleTable[k].chapters[l]);
+          alert(vers);
           while (chap < vers){
             planLines[lines] = BibleTable[k].abbr + ' ' (l + 1) + ':' + (chap + 1) + ' - ' + (l + 1) + ':' + (chap + pace);
             chap = chap + pace;
