@@ -52,7 +52,7 @@
             objs = breaddb.transaction('prog').objectStore('prog').getAll();
             objs.onsuccess = function () {
                 if (objs.result && objs.result.length > 0){                           
-                    document.getElementById('output').innerHTML = objs.result.join('\r').replace(/(?:\r\n|\r|\n)/g, '<br />');
+                    document.getElementById('output').innerHTML = objs.result[0].join('<br />');
                 }
             }
         }
