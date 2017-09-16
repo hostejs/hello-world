@@ -26,8 +26,10 @@
         alert("DB Error: " + ex);
     }
     function Initializer(){
+        var request;
+
         if (navigator.storage && navigator.storage.persist){
-            alert('applic');
+            
         
             navigator.storage.persist().then(granted => {
                 if (granted)
@@ -36,7 +38,7 @@
                     alert("Storage may be cleared by the UA under storage pressure.");
             });
         }
-        var request;
+
         try{
             request = indexedDB.open("breaddb", 1);
         }
@@ -54,14 +56,19 @@
             }                    
             alert('end create');
         }
+
         request.onsuccess = function (event) {
             breaddb = request.result;
-            //alert('open success');
+            alert('open success');
             var tx;
             try {
-                objs = breaddb.transaction('x').objectStore('prog').getAll();
-                objs.onsuccess = function () {                            
-                    document.getElementById('output').innerHTML = objs.result.join('</br>');
+                objs = breaddb.transaction('prog').objectStore('prog').getAll();
+                alert(objs);
+                objs.onsuccess = function () {
+                    alert('has objs');
+                    if (objs.result.length){                            
+                        document.getElementById('output').innerHTML = objs.result.join('</br>');
+                    }
                 }
             }
             catch (e) {
@@ -71,7 +78,7 @@
     }
     function clear(){
         try {
-            breaddb.transaction('x', 'readwrite').objectStore('prog').clear();
+            breaddb.transaction('prog', 'readwrite').objectStore('prog').clear();
         }
         catch (e) {
             DBErrorHandler(e);
@@ -185,7 +192,7 @@
         document.getElementById('plan').value = planLines.join('\r\n');
         document.getElementById('output').innerHTML = planLinks.join('</br>');
         try{
-            breaddb.transaction('x', 'readwrite').objectStore('prog').add(planLinks);
+            breaddb.transaction('prog', 'readwrite').objectStore('prog').add(planLinks);
         }
         catch(e){
             DBErrorHandler(e);
