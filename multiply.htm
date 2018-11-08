@@ -12,9 +12,12 @@
       function question(){
       var displayQuestion = "";
       var x = nums[math.round(math.random()*nums.length)];
+        alert(x);
       var y = math.round(math.random()*10);
+        alert(y);
       expectedNum = x*y;
       displayQuestion=x + 'x' + y;
+        alert(displayQuestion);
       document.getElementById("text").innerText = displayQuestion; 
       return false;
       }
