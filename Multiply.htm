@@ -1,0 +1,46 @@
+<html>
+<body>
+<input type="checkbox" value="0" onclick="addfactor(this);"/>0&nbsp;
+<input type="checkbox" value="1" onclick="addfactor(this);"/>1&nbsp;
+<input type="checkbox" value="2" onclick="addfactor(this);"/>2&nbsp;
+<input type="checkbox" value="3" onclick="addfactor(this);"/>3&nbsp;
+<input type="checkbox" value="4" onclick="addfactor(this);"/>4&nbsp;
+<input type="checkbox" value="5" onclick="addfactor(this);"/>5&nbsp;
+<input type="checkbox" value="6" onclick="addfactor(this);"/>6&nbsp;
+<input type="checkbox" value="7" onclick="addfactor(this);"/>7&nbsp;
+<input type="checkbox" value="8" onclick="addfactor(this);"/>8&nbsp;
+<input type="checkbox" value="9" onclick="addfactor(this);"/>9<br/><br/>
+<input type="button" value="GO" onclick="question();"/><br/>
+<div id="text">
+</div>
+<textarea cols="10" rows="5" id="entry"/><br/>
+<input type="button" value="Enter" onclick="answer();"/>
+<script>
+var nums=[];
+var expectedNum=0;
+function addfactor(box){
+  alert(box.value);
+  alert(nums.length);
+  nums[nums.length]=box.value;
+  return false;
+}
+function question(){
+var displayQuestion = "";
+var x = nums[math.round(math.random()*nums.length)];
+var y = math.round(math.random()*10);
+expectedNum = x*y;
+displayQuestion=x + 'x' + y;
+document.getElementById("text").innerText = displayQuestion; 
+return false;
+}
+function answer(){
+  var entry = parseInt(document.getElementById("entry").value);
+  if (entry == expectedNum){
+    alert('CORRECT');
+    question();
+  }
+  return false;
+}
+</script>
+</body>
+</html>
