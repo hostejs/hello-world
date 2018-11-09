@@ -13,8 +13,10 @@
       function question(){
         
       var displayQuestion = "";
-        var numx = Math.round(Math.random()*nums.length);
-        alert(numx);
+        alert(nums.length);
+        var rand = Math.random();         
+        var numx = Math.round(rand*nums.length);
+       if (numx == nums.length) numx -= 1;
       var x = nums[numx];
         alert(x);
       var y = Math.round(Math.random()*10);
