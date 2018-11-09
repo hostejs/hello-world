@@ -5,10 +5,11 @@
       var expectedNum=0;
       function addfactor(box){
         alert(box.value);
-        alert(nums.length);
+        
         nums[nums.length]=box.value;
         return false;
       }
+      
       function question(){
         alert('asking...');
       var displayQuestion = "";
@@ -22,7 +23,9 @@
       document.getElementById("text").innerText = displayQuestion; 
       return false;
       }
+      
       function answer(){
+        alert('stuff');
         var entry = parseInt(document.getElementById("entry").value);
         if (entry == expectedNum){
           alert('CORRECT');
