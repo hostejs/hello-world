@@ -13,7 +13,7 @@
       function question(){
         
       var displayQuestion = "";
-        var numx = Math.round(Math.random()*nums.length));
+        var numx = Math.round(Math.random()*nums.length);
         alert(numx);
       var x = nums[numx];
         alert(x);
@@ -24,7 +24,7 @@
         alert(displayQuestion);
       document.getElementById("text").innerText = displayQuestion;
         alert('GO');
-        
+        updateTime();
       setTimeout(updateTime, 60000);
         return false;
       }
