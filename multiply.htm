@@ -11,17 +11,28 @@
       }
       
       function question(){
-        alert('asking...');
+        
       var displayQuestion = "";
-      var x = nums[Math.round(Math.random()*nums.length)];
+        var numx = Math.round(Math.random()*nums.length));
+        alert(numx);
+      var x = nums[numx];
         alert(x);
       var y = Math.round(Math.random()*10);
         alert(y);
       expectedNum = x*y;
       displayQuestion=x + 'x' + y;
         alert(displayQuestion);
-      document.getElementById("text").innerText = displayQuestion; 
-      return false;
+      document.getElementById("text").innerText = displayQuestion;
+        alert('GO');
+        
+      setTimeout(updateTime, 60000);
+        return false;
+      }
+      
+      function updateTime(){
+        var today = new Date();
+        var time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+        document.getElementById("time").innerText = time;
       }
       
       function answer(){
@@ -47,8 +58,9 @@
 <input type="checkbox" value="8" onclick="addfactor(this);"/>8&nbsp;
 <input type="checkbox" value="9" onclick="addfactor(this);"/>9<br/><br/>
 <input type="button" value="GO" onclick="question();"/><br/>
-<div id="text">
-</div>
+  <span id="time"></span>
+  <div id="text">
+  </div>
 <textarea cols="10" rows="5" id="entry">
 </textarea><br/>
 <input type="button" value="Enter" onclick="answer();"/>
