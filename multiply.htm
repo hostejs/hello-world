@@ -1,137 +1,123 @@
 <html>
   <head>
-    
-<script>
+    <script>
       
-var nums=['0','1','2','3','4','5','6','7','8','9'];
-     
-var expectedNum=0;
-      
-var startDate=0;
-
-function addfactor(box){
-   if(box.checked){
-    nums[nums.length]=box.value;
-  }else{
-    var nums1 = [];
-
-
-    for(var i=0; i < nums.length; i++){
-      if (nums[i] != box.value){
-        nums1[nums1.length] = nums[i];
-      } 
+    var nums=['0','1','2','3','4','5','6','7','8','9'];
+    var expectedNum=0;
+    var startDate=0;
+    var numberCorrect =0;
+    function addfactor(box){
+      if(box.checked){
+        nums[nums.length]=box.value;
+      }else{
+        var nums1 = [];
+        for(var i=0; i < nums.length; i++){
+          if (nums[i] != box.value){
+            nums1[nums1.length] = nums[i];
+          } 
+        }
+        nums=nums1;
+      }    
+      return false;
     }
-    nums=nums1;
-  }    
-  return false;
-      
-}
-      
-      
 
-function question(){
-        
-      
-  var displayQuestion = "";
-        
-        
-  var rand = Math.random();         
-        
-  var numx = Math.round(rand*nums.length);
-       
-  if (numx == nums.length) numx -= 1;
-      
-  var x = nums[numx];
-        
-      
-  var y = Math.round(Math.random()*10);
-        
-      
-  expectedNum = x*y;
-      
-  displayQuestion=x + 'x' + y;
-       
-      
-  document.getElementById("text").innerText = displayQuestion;
-        
-  
-  return false;
-      
-}
-      
-      
-
-function reset(){
-  //var now = new Date();
-  //startDate = (now.getHours()*60)+now.getMinutes();        
-  startDate=0;    
-updateTime();
-  
-document.getElementById("entry").focus();      
-  return question();
-}
-
-function updateTime(){
-        
-  //var today = new Date();
-        
-  //var time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
-
-  //var diff =         (15 - (today.getHours()*60) + today.getMinutes());
-  var diff = 15 - startDate;  
-  document.getElementById("time").innerText = diff + ":00";
-  if (diff == 0){
-    alert("TIME'S UP");
-    reset();
-  }else{
-    startDate++;
-    setTimeout(updateTime, 60000);
-  }
-      
-}
-      
-      
-
-function answer(){
-       
-        
-  var entry = parseInt(document.getElementById("entry").value);
-        
-  if (entry == expectedNum){
+    function question(){
+            
           
-    alert('CORRECT');
- 
-    document.getElementById("entry").value='';
-    document.getElementById("entry").focus();
-         question();
-        
-  }
-else{ alert("INCORRECT"); document.getElementById("entry").select();}
-        return false;
+      var displayQuestion = "";
+            
+            
+      var rand = Math.random();         
+            
+      var numx = Math.round(rand*nums.length);
+          
+      if (numx == nums.length) numx -= 1;
+          
+      var x = nums[numx];
+            
+          
+      var y = Math.round(Math.random()*10);
+            
+          
+      expectedNum = x*y;
+          
+      displayQuestion=x + 'x' + y;
+          
+          
+      document.getElementById("text").innerText = displayQuestion;
+            
       
-}
-    
-</script>
+      return false;
+          
+    }
+      
+    function reset(){
+      //var now = new Date();
+      //startDate = (now.getHours()*60)+now.getMinutes();        
+      startDate=0;    
+      updateTime();  
+      document.getElementById("entry").focus();      
+      return question();
+    }
 
-
-  </head>
+    function updateTime(){      
+      var diff = 15 - startDate;  
+      document.getElementById("time").innerText = diff + ":00";
+      if (diff == 0){
+        alert("TIME'S UP");
+      }else{
+        startDate++;
+        setTimeout(updateTime, 60000);
+      }      
+    }
+      
+    function answer()
+    {       
+      var entry = parseInt(document.getElementById("entry").value);
+      if (entry == expectedNum){
+        numberCorrect++;
+        document.getElementById("num").innerText = numberCorrect + " CORRECT";
+        document.getElementById("num").className='correct';
+        document.getElementById("entry").value='';
+        document.getElementById("entry").focus();
+        question();     
+      }
+      else{ 
+        document.getElementById("num").innerText = numberCorrect + " INCORRECT...Try Again!";
+        document.getElementById("num").className='incorrect';
+        document.getElementById("entry").select();
+      }
+      return false;      
+    }
+    </script>
+    <style>
+      .correct{
+        background-color: green;
+        font-weight: bold;        
+      }
+      .incorrect{
+        background-color: red;
+        font-weight: bold;
+      }
+    </style>
+</head>
 <body>
- <input type="checkbox" value="0" onclick="addfactor(this);" checked=checked/>0&nbsp;
-<input type="checkbox" value="1" onclick="addfactor(this);" checked=checked/>1&nbsp;
-<input type="checkbox" value="2" onclick="addfactor(this);" checked=checked/>2&nbsp;
-<input type="checkbox" value="3" onclick="addfactor(this);" checked=checked/>3&nbsp;
-<input type="checkbox" value="4" onclick="addfactor(this);" checked=checked/>4&nbsp;
-<input type="checkbox" value="5" onclick="addfactor(this);" checked=checked/>5&nbsp;
-<input type="checkbox" value="6" onclick="addfactor(this);" checked=checked/>6&nbsp;
-<input type="checkbox" value="7" onclick="addfactor(this);" checked=checked/>7&nbsp;
-<input type="checkbox" value="8" onclick="addfactor(this);" checked=checked/>8&nbsp;
-<input type="checkbox" value="9" onclick="addfactor(this);" checked=checked/>9&nbsp;<input type="button" value="GO" onclick="reset();"/><br/>
-  <span id="time" style="color:red"></span>
+  <form id="frmMult" onsubmit="answer();"></form>
+  <input type="checkbox" value="0" onclick="addfactor(this);" checked=checked/>0&nbsp;
+  <input type="checkbox" value="1" onclick="addfactor(this);" checked=checked/>1&nbsp;
+  <input type="checkbox" value="2" onclick="addfactor(this);" checked=checked/>2&nbsp;
+  <input type="checkbox" value="3" onclick="addfactor(this);" checked=checked/>3&nbsp;
+  <input type="checkbox" value="4" onclick="addfactor(this);" checked=checked/>4&nbsp;
+  <input type="checkbox" value="5" onclick="addfactor(this);" checked=checked/>5&nbsp;
+  <input type="checkbox" value="6" onclick="addfactor(this);" checked=checked/>6&nbsp;
+  <input type="checkbox" value="7" onclick="addfactor(this);" checked=checked/>7&nbsp;
+  <input type="checkbox" value="8" onclick="addfactor(this);" checked=checked/>8&nbsp;
+  <input type="checkbox" value="9" onclick="addfactor(this);" checked=checked/>9&nbsp;<input type="button" value="GO" onclick="reset();"/><br/>
+  <span>Time Left: <span id="time" style="color:red"></span></span>
+  <span>Number Correct: <span id="num"></span></span>
   <div id="text">
   </div>
-<br/><input type="textbox" maxlength="10" id="entry"/>
-
-<input type="button" value="Check" onclick="answer();"/>
-
+  <br/><input type="textbox" maxlength="10" id="entry"/>
+  <input type="submit" value="Check"/>
 </body>
 </html>
