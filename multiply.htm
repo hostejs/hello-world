@@ -87,7 +87,7 @@
         document.getElementById("num").className='incorrect';
         document.getElementById("entry").select();
       }
-      return false;      
+      event.preventDefault();     
     }
     </script>
     <style>
@@ -102,7 +102,7 @@
     </style>
 </head>
 <body>
-  <form id="frmMult" onsubmit="answer();"></form>
+  
   <input type="checkbox" value="0" onclick="addfactor(this);" checked=checked/>0&nbsp;
   <input type="checkbox" value="1" onclick="addfactor(this);" checked=checked/>1&nbsp;
   <input type="checkbox" value="2" onclick="addfactor(this);" checked=checked/>2&nbsp;
@@ -117,7 +117,9 @@
   <span>Number Correct: <span id="num"></span></span>
   <div id="text">
   </div>
-  <br/><input type="textbox" maxlength="10" id="entry"/>
-  <input type="submit" value="Check"/>
+  <form id="frmMult" onsubmit="answer();">
+    <input type="textbox" maxlength="10" id="entry"/>
+    <input type="submit" value="Check"/>
+  </form>
 </body>
 </html>
