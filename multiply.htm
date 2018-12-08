@@ -71,7 +71,7 @@
       }      
     }
       
-    function answer()
+    function answer(e)
     {       
       var entry = parseInt(document.getElementById("entry").value);
       if (entry == expectedNum){
@@ -87,8 +87,8 @@
         document.getElementById("num").className='incorrect';
         document.getElementById("entry").select();
       }
-      event.preventDefault();  
-      return false;
+      e.preventDefault();  
+      return;
     }
     </script>
     <style>
@@ -118,7 +118,7 @@
   <span>Number Correct: <span id="num"></span></span>
   <div id="text">
   </div>
-  <form id="frmMult" onsubmit="return answer();">
+  <form id="frmMult" onsubmit="return answer(event);">
     <input type="textbox" maxlength="10" id="entry"/>
     <input type="submit" value="Check"/>
   </form>
