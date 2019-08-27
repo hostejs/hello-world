@@ -1,11 +1,66 @@
 <html>
   <head>
     <script>
-      
+    /*
+    - 
+    - 
+    - 
+
+    */    
+    //**********************************************
+    //*** ON LOAD INITS
+    //**********************************************  
     var nums=['0','1','2','3','4','5','6','7','8','9'];
-    var expectedNum=0;
-    var startDate=0;
-    var numberCorrect =0;
+    var wrongAnswers = [];
+    var expectedNum = [0, 0];
+    var timeCount = 0;
+    var numberCorrect = 0;
+    var START_TIME = 1;
+    
+    var callback = function(){
+      // Handler when the DOM is fully loaded
+      document.getElementById("entry").focus();
+      document.getElementById('entry').className='nilBorder';
+      highScoreData = localStorage.getItem('HighScores');
+
+      updateStartTime();     
+    };
+
+    if (document.readyState === "complete" ||
+      (document.readyState !== "loading" && !document.documentElement.doScroll)) {
+        callback();
+    } 
+    else {
+        document.addEventListener("DOMContentLoaded", callback);
+    }
+
+    function updateStartTime(){
+      START_TIME = document.getElementById("time").value;
+      if (START_TIME == '.5'){
+        START_TIME = 0;
+        document.getElementById("minutes1").innerText = 0;        
+        document.getElementById("seconds1").innerText = 30;
+      }
+      else {
+        START_TIME = parseInt(START_TIME);
+        if (START_TIME == 1){
+        
+          document.getElementById("minutes1").innerText = 0;        
+          document.getElementById("seconds1").innerText = 60;
+        
+        }
+        else{        
+          
+          document.getElementById("minutes1").innerText = START_TIME;
+          document.getElementById("seconds1").innerText = 0;
+          
+        }
+      }
+    }
+    
+    // *********************************************
+    // *** ADD FACTOR I.E. INCLUDES DIGIT IN QUESTION BUILDING ASSIGNMENT
+    // *********************************************
     function addfactor(box){
       if(box.checked){
         nums[nums.length]=box.value;
@@ -21,89 +76,269 @@
       return false;
     }
 
+    // *********************************************
+    // *** QUESTION BUILDER
+    // *********************************************
     function question(){
-            
-          
       var displayQuestion = "";
-            
-            
-      var rand = Math.random();         
-            
-      var numx = Math.round(rand*nums.length);
-          
-      if (numx == nums.length) numx -= 1;
-          
-      var x = nums[numx];
-            
-          
-      var y = Math.round(Math.random()*10);
-            
-          
-      expectedNum = x*y;
-          
-      displayQuestion=x + 'x' + y;
-          
-          
-      document.getElementById("text").innerText = displayQuestion;
-            
       
+      var hasWrongs = (wrongAnswers.length > 0 &&
+                      wrongAnswerItem < wrongAnswers.length);
+      if (!hasWrongs) answerCounter = 0;
+      if (hasWrongs && 
+        answerCounter > 3){
+        
+        answerCounter = 0;
+        
+        var x =  wrongAnswers[wrongAnswerItem][0];
+        var y = wrongAnswers[wrongAnswerItem][1];
+        wrongAnswerItem++;
+        
+        expectedNum = [x, y];
+        displayQuestion = x + ' x ' + y + ' =';
+      }
+      else{
+        var rand = Math.random();
+      
+        var howManyToChooseFrom = nums.length;      
+        var numx = Math.round(rand * howManyToChooseFrom);      
+      
+        if (numx == nums.length) numx -= 1;  
+        var x =  nums[numx];
+        var y = Math.round(Math.random()*10);
+      
+        expectedNum = [x, y];
+        displayQuestion = x + ' x ' + y + ' =';
+        
+        answerCounter++;
+      }      
+      
+      document.getElementById("text").innerText = displayQuestion;
       return false;
-          
     }
       
+    // *********************************************************
+    // *** RESET SETS THE STATE OF QUIZ BACK TO INITS
+    // *********************************************************
     function reset(){
-      //var now = new Date();
-      //startDate = (now.getHours()*60)+now.getMinutes();        
-      startDate=0;    
-      updateTime();  
-      document.getElementById("entry").focus();      
+      answerCounter = 0;
+      wrongAnswerItem = 0;
+      wrongAnswers = [];
+      expectedNum = [0, 0];
+      timeCount = 0;
+      numberCorrect = 0;    
+      document.getElementById('stb').disabled='true';
+      updateTime(); 
+      document.getElementById("entry").disabled='';
+      document.getElementById("entry").focus();
+      document.getElementById("total").innerText = numberCorrect;      
       return question();
     }
 
+    // **********************************************************
+    // *** HIGH SCORE READOUT BUILDS AND UPDATES HIGH SCORES INFO
+    // **********************************************************
+    function highScoreReadout(){
+      if (highScoreData){
+        var newScoreData = [];
+        var i = 0;
+        var tempHighScoreSpot = -1;
+        highScoreData = highScoreData.split(',');
+        while (i < highScoreData.length){
+          
+          if (parseInt(highScoreData[i]) <= numberCorrect){
+            if (tempHighScoreSpot == -1){
+              newScoreData[newScoreData.length] = numberCorrect;
+              tempHighScoreSpot = i + 1; 
+            }
+          }
+
+          if (newScoreData.length >= 10) break;
+
+          i++;       
+
+          newScoreData[newScoreData.length] = highScoreData[i-1];
+        }
+      
+        localStorage.setItem('HighScores', newScoreData);
+        if (tempHighScoreSpot > -1){
+          alert('You have set high score #' + tempHighScoreSpot + ' with ' + numberCorrect + ' correct answers!\r\n' + newScoreData);
+        }
+      }
+      else{
+        var newScoreData = [];
+        newScoreData[0] = numberCorrect;
+        localStorage.setItem('HighScores', newScoreData);
+        alert('You have set high score #1 with ' + numberCorrect + ' correct answers!');
+      }
+      document.getElementById('stb').disabled='';
+      updateStartTime();
+    }
+      
+    // **************************************************************
+    // *** UPDATE SECONDS HANDLES WHEN DISPLAY CHANGES ARE MADE PER SECOND
+    // **************************************************************
+    function updateSeconds(){
+      document.getElementById("minutes1").innerText = 0  
+      document.getElementById("seconds1").innerText = timeCount;
+      timeCount--;
+      if (timeCount == 1){
+        START_TIME = 1;
+        setTimeout(updateTime, 1000);  
+      }
+      else{
+        setTimeout(updateSeconds, 1000);  
+      }      
+    }
+    
+    // ***********************************************************
+    // *** UPDATE TIME HANDLES UPDATING TIME DISPLAY
+    // ***********************************************************
     function updateTime(){      
-      var diff = 15 - startDate;  
-      document.getElementById("time").innerText = diff + ":00";
+      var diff = START_TIME - timeCount; 
+      //console.log(diff);
+      if (START_TIME == 0){
+        timeCount = 30;
+        setTimeout(updateSeconds, 1000);
+        return;
+      }
+
       if (diff == 0){
-        alert("TIME'S UP");
-      }else{
-        startDate++;
+        document.getElementById("entry").disabled='false';
+        document.getElementById("minutes1").innerText = 0;        
+        document.getElementById("seconds1").innerText = 0;
+        setTimeout(highScoreReadout, 2000);
+      }
+      else if (diff == 1){
+        document.getElementById("minutes1").innerText = 0;        
+        document.getElementById("seconds1").innerText = 60;
+        
+        timeCount = 60;
+        setTimeout(updateSeconds, 1000);
+      }
+      else{        
+        document.getElementById("minutes1").innerText = diff;
+        document.getElementById("seconds1").innerText = 0;
+        timeCount++;
         setTimeout(updateTime, 60000);
       }      
     }
-      
+    
+    // *************************************************************
+    // *** ANSWER EVALUATION OF ANSWER GIVEN AND DISPLAY CHANGES
+    // *************************************************************
     function answer(e)
     {       
-      var entry = parseInt(document.getElementById("entry").value);
-      if (entry == expectedNum){
-        numberCorrect++;
-        document.getElementById("num").innerText = numberCorrect + " CORRECT";
-        document.getElementById("num").className='correct';
+      var txtEntry = document.getElementById("entry").value;
+      
+      if (txtEntry.trim().length == 0){
+        if (document.getElementById("text").innerText.length == 0){
+          reset();
+        }
+        
+        e.preventDefault();  
+        return;
+      }
+
+      var entry = parseInt(txtEntry);
+      if (entry == (expectedNum[0] * expectedNum[1])){
+        numberCorrect++;        
+        document.getElementById("total").innerText = numberCorrect;
+
+        document.getElementById("entry").className='correct';
         document.getElementById("entry").value='';
         document.getElementById("entry").focus();
-        question();     
+        question();   
       }
       else{ 
-        document.getElementById("num").innerText = numberCorrect + " INCORRECT...Try Again!";
-        document.getElementById("num").className='incorrect';
-        document.getElementById("entry").select();
+        answerCounter = 0;
+        wrongAnswers[wrongAnswers.length] = expectedNum;
+        wrongAnswers[wrongAnswers.length] = expectedNum;
+        wrongAnswers[wrongAnswers.length] = expectedNum;
+        //document.getElementById("num").innerText = numberCorrect + " INCORRECT...";
+        document.getElementById("entry").className='incorrect';
+        document.getElementById("entry").value='';
+        //document.getElementById("entry").select();
+        question();
       }
       e.preventDefault();  
       return;
     }
     </script>
     <style>
+      
       .correct{
-        background-color: green;
-        font-weight: bold;        
+        border: dotted green 5px; 
       }
       .incorrect{
-        background-color: red;
+        border: dotted red 5px;
+      }
+
+      .nilBorder{
+        outline: none !important;
+        border:none;        
+      }
+      
+      .odometer {
+        font-size: 100px;  
+        float:left; 
+      }
+
+      .parent {
+        float: right;
+        clear:both;
+        position: relative;
+        left: -50%; /* or right 50% */
+        text-align: left;
+        margin: 5px;
+      }
+      .parent > .child {
+        position: relative;
+        left: 50%;
+      }
+
+      #entry{
+        font-family: times;
+        color: #444;
+        margin: 0;
+        padding: 0px 0px 6px 0px;
+        font-size: 100px;
+        letter-spacing: -2px;
         font-weight: bold;
+        vertical-align: middle;
+        text-align: center;
+        float:left;
+      }
+
+      .button {
+        background-color: #4CAF50; /* Green */
+        border: none;
+        color: white;
+        padding: 15px 32px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 5px;
+      }  
+
+      .lgTxt{
+        font-family: times;
+        color: #444;
+        margin: 0;
+        padding: 0px 0px 6px 0px;
+        font-size: 100px;
+        letter-spacing: -2px;
+        font-weight: bold;
+        vertical-align: middle;
       }
     </style>
+    <link rel="stylesheet" href="http://github.hubspot.com/odometer/themes/odometer-theme-car.css" />
+    <script src="http://github.hubspot.com/odometer/odometer.js"></script>
 </head>
-<body>
-  
+<body>  
+
+  <div style="text-align:center;">
   <input type="checkbox" value="0" onclick="addfactor(this);" checked=checked/>0&nbsp;
   <input type="checkbox" value="1" onclick="addfactor(this);" checked=checked/>1&nbsp;
   <input type="checkbox" value="2" onclick="addfactor(this);" checked=checked/>2&nbsp;
@@ -113,14 +348,55 @@
   <input type="checkbox" value="6" onclick="addfactor(this);" checked=checked/>6&nbsp;
   <input type="checkbox" value="7" onclick="addfactor(this);" checked=checked/>7&nbsp;
   <input type="checkbox" value="8" onclick="addfactor(this);" checked=checked/>8&nbsp;
-  <input type="checkbox" value="9" onclick="addfactor(this);" checked=checked/>9&nbsp;<input type="button" value="GO" onclick="reset();"/><br/>
-  <span>Time Left: <span id="time" style="color:red"></span></span>
-  <span>Number Correct: <span id="num"></span></span>
-  <div id="text">
+  <input type="checkbox" value="9" onclick="addfactor(this);" checked=checked/>9&nbsp;<br/>
+  <select id="time" onchange="updateStartTime();">
+    <option value=".5">
+      30 seconds
+    </option>
+    <option value="1">
+      1 minute
+    </option>
+    <option value="2">
+      2 minute
+    </option>
+    <option value="3">
+      3 minute
+    </option>
+    <option value="5">
+      5 minute
+    </option>
+    <option value="10">
+      10 minute
+    </option>
+    <option value="15" selected>
+      15 minute
+    </option>
+    <option value="20">
+      20 minute
+    </option>
+  </select><br/>
+  <input type="button" value="START" onclick="reset();" class="button" id="stb"/>
   </div>
-  <form id="frmMult" onsubmit="return answer(event);">
-    <input type="textbox" maxlength="10" id="entry"/>
-    <input type="submit" value="Check"/>
+  <div class="parent">
+  <div class="child">
+    <div class="odometer" id="total"></div>
+  </div></div>
+
+  <div class="parent">
+  <div class="child">
+    <div class="odometer" id="minutes1"></div>
+    <div style="float:left;" class="lgTxt">:</div>
+    <div class="odometer" id="seconds1"></div>
+  </div></div>
+
+  <div class="parent">
+  <div class="child">
+  <form id="frmMult" onsubmit="return answer(event);" autocomplete="off">
+    
+      <div id="text" class="lgTxt" style="float:left;"></div><input type="textbox" maxlength="3" size="4" id="entry" autocomplete="off" name="entry_101038830"/>
+    
+    <input type="submit" value="Check" style="visibility:hidden;"/>
   </form>
+  </div></div>
 </body>
 </html>
