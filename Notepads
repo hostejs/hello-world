@@ -1,0 +1,35 @@
+Sparse Image files
+Disk image files
+
+Using dd command: # dd if=/dev/zero of=newdisk.img bs=1M seek=10000 count=1
+qemu-img tool
+
+empty disk image tool https://fedingo.com/how-to-create-empty-disk-image-in-linux/
+fallocate command 08-2022 tried it: (fallocate -l 1G ubuntu_jammy.img)
+truncate command
+https://www.cyberciti.biz/faq/howto-create-lage-files-with-dd-command/
+
+https://help.ubuntu.com/community/Installation/UEFI-and-BIOS/stable-alternative
+
+getting a filesystem on the img file
+get the kpartx package
+command: kpartx -a image_file.img
+the partitions are assigned to /dev/loop0p1, /dev/loop0p2, etc
+kpartx -d image_file.img removes the device assignment
+Ok, then find out the name of the files associated with the device(s)
+ls -l /dev/mapper
+shows files, which will look like ../dm-# for each partition
+
+https://digital-domain.net/fs-img.html
+dmsetup remove /dev/dm-1
+dmsetup remove /dev/dm-2
+ls -l /dev/mapper
+losetup -a or losetup -D ?? not sure because I didn't have to do this at all
+
+to complete a file system resize, run: resize2fs /dev/dm-2 (whatever your root is)
+
+sudo mount -o loop /path/to/my-iso-image.iso /mnt/iso.
+
+https://www.linuxbabe.com/ubuntu/connect-to-wi-fi-from-terminal-on-ubuntu-18-04-19-04-with-wpa-supplicant
+
+qemu-system-x86_64 -hda myimage.img -m 512 (memory)
