@@ -11,6 +11,7 @@
     //*** ON LOAD INITS
     //**********************************************  
     var nums=['0','1','2','3','4','5','6','7','8','9'];
+    var isRepeatQuestion = false;
     var wrongAnswers = [];
     var expectedNum = [0, 0];
     var timeCount = 0;
@@ -36,24 +37,18 @@
 
     function updateStartTime(){
       START_TIME = document.getElementById("time").value;
+      document.getElementById("seconds1").innerText = '00'; 
+      document.getElementById("minutes1").innerText = '00';  
       if (START_TIME == '.5'){
-        START_TIME = 0;
-        document.getElementById("minutes1").innerText = 0;        
-        document.getElementById("seconds1").innerText = 30;
+        START_TIME = 0;              
+        document.getElementById("seconds1").innerText = '30';
       }
       else {
         START_TIME = parseInt(START_TIME);
-        if (START_TIME == 1){
-        
-          document.getElementById("minutes1").innerText = 0;        
-          document.getElementById("seconds1").innerText = 60;
-        
-        }
-        else{        
-          
+        if (START_TIME < 10){
+          document.getElementById("minutes1").innerText = '0'+ START_TIME;
+        } else {
           document.getElementById("minutes1").innerText = START_TIME;
-          document.getElementById("seconds1").innerText = 0;
-          
         }
       }
     }
@@ -80,40 +75,36 @@
     // *** QUESTION BUILDER
     // *********************************************
     function question(){
-      var displayQuestion = "";
-      
+            
       var hasWrongs = (wrongAnswers.length > 0 &&
                       wrongAnswerItem < wrongAnswers.length);
-      if (!hasWrongs) answerCounter = 0;
+      
       if (hasWrongs && 
-        answerCounter > 3){
+        !isRepeatQuestion){
         
-        answerCounter = 0;
+        isRepeatQuestion = true;
         
         var x =  wrongAnswers[wrongAnswerItem][0];
         var y = wrongAnswers[wrongAnswerItem][1];
         wrongAnswerItem++;
         
-        expectedNum = [x, y];
-        displayQuestion = x + ' x ' + y + ' =';
       }
       else{
+        
+        var y = expectedNum[1];
+        while (y == expectedNum[1]){
+          y = Math.round(Math.random()*10);
+        } 
         var rand = Math.random();
-      
         var howManyToChooseFrom = nums.length;      
         var numx = Math.round(rand * howManyToChooseFrom);      
       
-        if (numx == nums.length) numx -= 1;  
+        if (numx == nums.length) numx -= 1;
         var x =  nums[numx];
-        var y = Math.round(Math.random()*10);
-      
-        expectedNum = [x, y];
-        displayQuestion = x + ' x ' + y + ' =';
-        
-        answerCounter++;
       }      
       
-      document.getElementById("text").innerText = displayQuestion;
+      expectedNum = [x, y];
+      document.getElementById("text").innerText = x + ' x ' + y + ' =';
       return false;
     }
       
@@ -121,17 +112,22 @@
     // *** RESET SETS THE STATE OF QUIZ BACK TO INITS
     // *********************************************************
     function reset(){
-      answerCounter = 0;
+      
       wrongAnswerItem = 0;
       wrongAnswers = [];
       expectedNum = [0, 0];
-      timeCount = 0;
       numberCorrect = 0;    
       document.getElementById('stb').disabled='true';
-      updateTime(); 
+      
+      timeCount = 60;
+      if (START_TIME == 0){
+        timeCount = 30;               
+      }
+      
       document.getElementById("entry").disabled='';
       document.getElementById("entry").focus();
       document.getElementById("total").innerText = numberCorrect;      
+      setTimeout(updateSeconds, 1000);
       return question();
     }
 
@@ -179,16 +175,35 @@
     // *** UPDATE SECONDS HANDLES WHEN DISPLAY CHANGES ARE MADE PER SECOND
     // **************************************************************
     function updateSeconds(){
-      document.getElementById("minutes1").innerText = 0  
-      document.getElementById("seconds1").innerText = timeCount;
+      
       timeCount--;
-      if (timeCount == 1){
-        START_TIME = 1;
-        setTimeout(updateTime, 1000);  
+      if (timeCount >= 10){
+        document.getElementById("seconds1").innerText = timeCount;
+      } else {
+        document.getElementById("seconds1").innerText = '0' + timeCount;
       }
-      else{
-        setTimeout(updateSeconds, 1000);  
-      }      
+      
+      if (timeCount == 0){
+        if (START_TIME >= 1){
+          timeCount = 60;
+          START_TIME--;
+        } else {
+          document.getElementById("entry").disabled='false';
+          document.getElementById("minutes1").innerText = '00';        
+          document.getElementById("seconds1").innerText = '00';
+          setTimeout(highScoreReadout, 2000);
+        }
+      }
+      if (timeCount == 59){
+        if (START_TIME < 10){
+          document.getElementById("minutes1").innerText = '0'+ START_TIME;
+        } else {
+          document.getElementById("minutes1").innerText = START_TIME;
+        }
+        document.getElementById("minutes1").innerText = '00';
+      }   
+      
+      setTimeout(updateSeconds, 1000);  
     }
     
     // ***********************************************************
@@ -197,21 +212,16 @@
     function updateTime(){      
       var diff = START_TIME - timeCount; 
       //console.log(diff);
-      if (START_TIME == 0){
-        timeCount = 30;
-        setTimeout(updateSeconds, 1000);
-        return;
-      }
-
+      
       if (diff == 0){
         document.getElementById("entry").disabled='false';
-        document.getElementById("minutes1").innerText = 0;        
-        document.getElementById("seconds1").innerText = 0;
+        document.getElementById("minutes1").innerText = '00';        
+        document.getElementById("seconds1").innerText = '00';
         setTimeout(highScoreReadout, 2000);
       }
       else if (diff == 1){
-        document.getElementById("minutes1").innerText = 0;        
-        document.getElementById("seconds1").innerText = 60;
+        document.getElementById("minutes1").innerText = '00';        
+        document.getElementById("seconds1").innerText = '60';
         
         timeCount = 60;
         setTimeout(updateSeconds, 1000);
@@ -246,21 +256,22 @@
         document.getElementById("total").innerText = numberCorrect;
 
         document.getElementById("entry").className='correct';
-        document.getElementById("entry").value='';
-        document.getElementById("entry").focus();
-        question();   
+        
       }
       else{ 
-        answerCounter = 0;
-        wrongAnswers[wrongAnswers.length] = expectedNum;
-        wrongAnswers[wrongAnswers.length] = expectedNum;
-        wrongAnswers[wrongAnswers.length] = expectedNum;
-        //document.getElementById("num").innerText = numberCorrect + " INCORRECT...";
+        if (!isRepeatQuestion){
+          wrongAnswers[wrongAnswers.length] = expectedNum;
+          wrongAnswers[wrongAnswers.length] = expectedNum;
+          wrongAnswers[wrongAnswers.length] = expectedNum;
+        }
+        
         document.getElementById("entry").className='incorrect';
-        document.getElementById("entry").value='';
-        //document.getElementById("entry").select();
-        question();
+        
       }
+      document.getElementById("entry").value='';
+      document.getElementById("entry").focus();
+      question();
+      
       e.preventDefault();  
       return;
     }
