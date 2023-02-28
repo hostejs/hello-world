@@ -155,8 +155,11 @@
     // *** HIGH SCORE READOUT BUILDS AND UPDATES HIGH SCORES INFO
     // **********************************************************
     function highScoreReadout(){
+      
+      var newScoreData = [];
+      
       if (highScoreData != null){
-        var newScoreData = [];
+                
         var i = 0;
         var tempHighScoreSpot = -1;
         var highScoreSplit = highScoreData.split(',');
@@ -177,21 +180,20 @@
         }
       
         highScoreData = newScoreData.join();
-        localStorage.setItem('HighScores', highScoreData);
+        
         if (tempHighScoreSpot > -1){
-          alert('You have set high score #' + tempHighScoreSpot + ' with ' + numberCorrect + ' correct answers!');
+          alert('New high score #' + tempHighScoreSpot + '. ' + numberCorrect + ' correct answers!');
         }
         
       }
       else{
-        
-        var newScoreData = [];
+                
         newScoreData[0] = numberCorrect;
-        highScoreData = newScoreData.join();
-        localStorage.setItem('HighScores', highScoreData);        
-        alert('You have set high score #1 with ' + numberCorrect + ' correct answers!');
+        highScoreData = newScoreData.join();      
+        alert('New high score of ' + numberCorrect + ' correct answers!');
         
       }
+      localStorage.setItem('HighScores', highScoreData);
       
       document.getElementById('stb').disabled='';
       document.getElementById('time').disabled='';
@@ -251,8 +253,9 @@
       
       if (entry == (expectedNum[0] * expectedNum[1])){
         
-        numberCorrect++;        
-        totalOd.value = '#'+numberCorrect;
+        numberCorrect++;
+        var paddedTotal = '00'+numberCorrect;        
+        totalOd.value = '#'+paddedTotal.slice(paddedTotal.length - 3, paddedTotal.length);
         totalOd.render();
         document.getElementById("entry").className='correct';                        
       }
