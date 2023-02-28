@@ -172,9 +172,9 @@
           newScoreData[newScoreData.length] = highScoreData[i-1];
         }
       
-        localStorage.setItem('HighScores', newScoreData);
+        localStorage.setItem('HighScores', newScoreData.join());
         if (tempHighScoreSpot > -1){
-          alert('You have set high score #' + tempHighScoreSpot + ' with ' + numberCorrect + ' correct answers!\r\n' + newScoreData);
+          alert('You have set high score #' + tempHighScoreSpot + ' with ' + numberCorrect + ' correct answers!');
         }
       }
       else{
@@ -212,6 +212,7 @@
         } else {
           document.getElementById("entry").disabled='true';          
           setTimeout(highScoreReadout, 2000);
+          return;
         }
       }
             
