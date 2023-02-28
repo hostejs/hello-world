@@ -92,19 +92,22 @@
       var hasWrongs = (wrongAnswers.length > 0 &&
                       wrongAnswerItem < wrongAnswers.length);
       
-      if (hasWrongs && 
-        !isRepeatQuestion){
+      var x = 0;
+      var y = 0;
+      isRepeatQuestion = false;
+      if (hasWrongs){
         
-        isRepeatQuestion = true;
-        
-        var x =  wrongAnswers[wrongAnswerItem][0];
-        var y = wrongAnswers[wrongAnswerItem][1];
-        wrongAnswerItem++;
-        
+        x =  wrongAnswers[wrongAnswerItem][0];
+        y = wrongAnswers[wrongAnswerItem][1];
+        if (expectedNum[0] != x && expectedNum[1] != y){
+          isRepeatQuestion = true;
+          wrongAnswerItem++;        
+        }
       }
-      else{
+      
+      if (!isRepeatQuestion){
         
-        var y = expectedNum[1];
+        y = Math.round(Math.random()*10);
         while (y == expectedNum[1]){
           y = Math.round(Math.random()*10);
         } 
@@ -113,7 +116,7 @@
         var numx = Math.round(rand * howManyToChooseFrom);      
       
         if (numx == nums.length) numx -= 1;
-        var x =  nums[numx];
+        x =  nums[numx];
       }      
       
       expectedNum = [x, y];
@@ -156,10 +159,10 @@
         var newScoreData = [];
         var i = 0;
         var tempHighScoreSpot = -1;
-        highScoreData = highScoreData.split(',');
-        while (i < highScoreData.length){
+        var highScoreSplit = highScoreData.split(',');
+        while (i < highScoreSplit.length){
           
-          if (parseInt(highScoreData[i]) <= numberCorrect){
+          if (parseInt(highScoreSplit[i]) <= numberCorrect){
             if (tempHighScoreSpot == -1){
               newScoreData[newScoreData.length] = numberCorrect;
               tempHighScoreSpot = i + 1; 
@@ -169,11 +172,12 @@
           if (newScoreData.length >= 10) break;
 
           i++;       
-          newScoreData[newScoreData.length] = highScoreData[i-1];
+          newScoreData[newScoreData.length] = highScoreSplit[i-1];
           
         }
       
-        localStorage.setItem('HighScores', newScoreData.join());
+        highScoreData = newScoreData.join();
+        localStorage.setItem('HighScores', highScoreData);
         if (tempHighScoreSpot > -1){
           alert('You have set high score #' + tempHighScoreSpot + ' with ' + numberCorrect + ' correct answers!');
         }
@@ -183,7 +187,8 @@
         
         var newScoreData = [];
         newScoreData[0] = numberCorrect;
-        localStorage.setItem('HighScores', newScoreData.join());
+        highScoreData = newScoreData.join();
+        localStorage.setItem('HighScores', highScoreData);        
         alert('You have set high score #1 with ' + numberCorrect + ' correct answers!');
         
       }
@@ -249,24 +254,23 @@
         numberCorrect++;        
         totalOd.value = '#'+numberCorrect;
         totalOd.render();
-        document.getElementById("entry").className='correct';        
+        document.getElementById("entry").className='correct';                        
       }
       else{ 
         
         if (!isRepeatQuestion){
           
           wrongAnswers[wrongAnswers.length] = [expectedNum[0], expectedNum[1]];
-          wrongAnswers[wrongAnswers.length] = [expectedNum[0], expectedNum[1]];          
-        }
-        
+          wrongAnswers[wrongAnswers.length] = [expectedNum[0], expectedNum[1]]; 
+        } 
+                
         document.getElementById("entry").className='incorrect';        
       }
-      
-      isRepeatQuestion = false;
+            
       document.getElementById("entry").value='';
       document.getElementById("entry").focus();
       question();
-      
+            
       e.preventDefault();  
       return;
     }
