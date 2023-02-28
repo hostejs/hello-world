@@ -132,6 +132,7 @@
       numberCorrect = 0;    
       document.getElementById('stb').disabled='true';
       document.getElementById('time').disabled='true';
+      document.getElementById('entry').className='nilBorder';
 
       timeCount = 60;
       if (START_TIME == 0){
@@ -155,7 +156,7 @@
         var newScoreData = [];
         var i = 0;
         var tempHighScoreSpot = -1;
-        highScoreData = highScoreData.split(',');
+        //highScoreData = highScoreData.split(',');
         while (i < highScoreData.length){
           
           if (parseInt(highScoreData[i]) <= numberCorrect){
@@ -180,7 +181,7 @@
       else{
         var newScoreData = [];
         newScoreData[0] = numberCorrect;
-        localStorage.setItem('HighScores', newScoreData);
+        localStorage.setItem('HighScores', newScoreData.join());
         alert('You have set high score #1 with ' + numberCorrect + ' correct answers!');
       }
       
