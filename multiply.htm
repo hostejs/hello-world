@@ -5,7 +5,6 @@
     - 
     - 
     - 
-
     */    
     //**********************************************
     //*** ON LOAD INITS
@@ -17,12 +16,20 @@
     var timeCount = 0;
     var numberCorrect = 0;
     var START_TIME = 1;
-    
+        
     var callback = function(){
+      odometerOptions = { auto: false };
       // Handler when the DOM is fully loaded
       document.getElementById("entry").focus();
       document.getElementById('entry').className='nilBorder';
       highScoreData = localStorage.getItem('HighScores');
+      totalOd = new Odometer({ el: document.getElementById("total"), format: '(ddd)', theme: 'digital', animation: 'count' });
+      totalOd.value = '#000';
+      totalOd.render();
+
+      secondsOd = new Odometer({ el: document.getElementById("seconds1"), format: '(dd:dd)', theme: 'digital', animation: 'count' });
+      secondsOd.value = 'T-0000';
+      secondsOd.render();
 
       updateStartTime();     
     };
@@ -36,19 +43,25 @@
     }
 
     function updateStartTime(){
+
       START_TIME = document.getElementById("time").value;
-      document.getElementById("seconds1").innerText = '00'; 
-      document.getElementById("minutes1").innerText = '00';  
+      
       if (START_TIME == '.5'){
-        START_TIME = 0;              
-        document.getElementById("seconds1").innerText = '30';
+        START_TIME = 0;           
+        secondsOd.value = 'T-0030';
+        secondsOd.render();   
+
       }
       else {
         START_TIME = parseInt(START_TIME);
         if (START_TIME < 10){
-          document.getElementById("minutes1").innerText = '0'+ START_TIME;
+          secondsOd.value = 'T-0'+START_TIME+'00';
+          secondsOd.render();
+
         } else {
-          document.getElementById("minutes1").innerText = START_TIME;
+          secondsOd.value = 'T-'+START_TIME+'00';
+          secondsOd.render();
+
         }
       }
     }
@@ -118,7 +131,8 @@
       expectedNum = [0, 0];
       numberCorrect = 0;    
       document.getElementById('stb').disabled='true';
-      
+      document.getElementById('time').disabled='true';
+
       timeCount = 60;
       if (START_TIME == 0){
         timeCount = 30;               
@@ -126,7 +140,9 @@
       
       document.getElementById("entry").disabled='';
       document.getElementById("entry").focus();
-      document.getElementById("total").innerText = numberCorrect;      
+      totalOd.value = '#000';
+      totalOd.render();
+      
       setTimeout(updateSeconds, 1000);
       return question();
     }
@@ -167,7 +183,9 @@
         localStorage.setItem('HighScores', newScoreData);
         alert('You have set high score #1 with ' + numberCorrect + ' correct answers!');
       }
+      
       document.getElementById('stb').disabled='';
+      document.getElementById('time').disabled='';
       updateStartTime();
     }
       
@@ -177,61 +195,27 @@
     function updateSeconds(){
       
       timeCount--;
-      if (timeCount >= 10){
-        document.getElementById("seconds1").innerText = timeCount;
-      } else {
-        document.getElementById("seconds1").innerText = '0' + timeCount;
-      }
-      
+      var minutes = START_TIME;
+      if (START_TIME < 10)
+        minutes = '0' + START_TIME;
+      var seconds = timeCount;
+      if (timeCount < 10)
+        seconds = '0' + timeCount;
+      //document.getElementById("seconds1").innerHtml = 'T-'+minutes+':'+seconds;
+      secondsOd.value = 'T-'+minutes+''+seconds;
+      secondsOd.render();
+
       if (timeCount == 0){
         if (START_TIME >= 1){
           timeCount = 60;
           START_TIME--;
         } else {
-          document.getElementById("entry").disabled='false';
-          document.getElementById("minutes1").innerText = '00';        
-          document.getElementById("seconds1").innerText = '00';
+          document.getElementById("entry").disabled='true';          
           setTimeout(highScoreReadout, 2000);
         }
       }
-      if (timeCount == 59){
-        if (START_TIME < 10){
-          document.getElementById("minutes1").innerText = '0'+ START_TIME;
-        } else {
-          document.getElementById("minutes1").innerText = START_TIME;
-        }
-        document.getElementById("minutes1").innerText = '00';
-      }   
-      
+            
       setTimeout(updateSeconds, 1000);  
-    }
-    
-    // ***********************************************************
-    // *** UPDATE TIME HANDLES UPDATING TIME DISPLAY
-    // ***********************************************************
-    function updateTime(){      
-      var diff = START_TIME - timeCount; 
-      //console.log(diff);
-      
-      if (diff == 0){
-        document.getElementById("entry").disabled='false';
-        document.getElementById("minutes1").innerText = '00';        
-        document.getElementById("seconds1").innerText = '00';
-        setTimeout(highScoreReadout, 2000);
-      }
-      else if (diff == 1){
-        document.getElementById("minutes1").innerText = '00';        
-        document.getElementById("seconds1").innerText = '60';
-        
-        timeCount = 60;
-        setTimeout(updateSeconds, 1000);
-      }
-      else{        
-        document.getElementById("minutes1").innerText = diff;
-        document.getElementById("seconds1").innerText = 0;
-        timeCount++;
-        setTimeout(updateTime, 60000);
-      }      
     }
     
     // *************************************************************
@@ -253,8 +237,9 @@
       var entry = parseInt(txtEntry);
       if (entry == (expectedNum[0] * expectedNum[1])){
         numberCorrect++;        
-        document.getElementById("total").innerText = numberCorrect;
-
+//        document.getElementById("total").innerText = numberCorrect;
+        totalOd.value = '#'+numberCorrect;
+        totalOd.render();
         document.getElementById("entry").className='correct';
         
       }
@@ -359,7 +344,7 @@
   <input type="checkbox" value="6" onclick="addfactor(this);" checked=checked/>6&nbsp;
   <input type="checkbox" value="7" onclick="addfactor(this);" checked=checked/>7&nbsp;
   <input type="checkbox" value="8" onclick="addfactor(this);" checked=checked/>8&nbsp;
-  <input type="checkbox" value="9" onclick="addfactor(this);" checked=checked/>9&nbsp;<br/>
+  <input type="checkbox" value="9" onclick="addfactor(this);" checked=checked/>9&nbsp;
   <select id="time" onchange="updateStartTime();">
     <option value=".5">
       30 seconds
@@ -385,7 +370,7 @@
     <option value="20">
       20 minute
     </option>
-  </select><br/>
+  </select>
   <input type="button" value="START" onclick="reset();" class="button" id="stb"/>
   </div>
   <div class="parent">
@@ -394,9 +379,7 @@
   </div></div>
 
   <div class="parent">
-  <div class="child">
-    <div class="odometer" id="minutes1"></div>
-    <div style="float:left;" class="lgTxt">:</div>
+  <div class="child">    
     <div class="odometer" id="seconds1"></div>
   </div></div>
 
