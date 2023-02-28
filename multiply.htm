@@ -95,13 +95,15 @@
       var x = 0;
       var y = 0;
       isRepeatQuestion = false;
+      var emph = '';
       if (hasWrongs){
         
         x =  wrongAnswers[wrongAnswerItem][0];
         y = wrongAnswers[wrongAnswerItem][1];
         if (expectedNum[0] != x && expectedNum[1] != y){
           isRepeatQuestion = true;
-          wrongAnswerItem++;        
+          wrongAnswerItem++;  
+          emph = '(x'+wrongAnswerItem+')';
         }
       }
       
@@ -120,7 +122,7 @@
       }      
       
       expectedNum = [x, y];
-      document.getElementById("text").innerText = x + ' x ' + y + ' =';
+      document.getElementById("text").innerText = emph + x + ' x ' + y + ' =';
       return false;
     }
       
