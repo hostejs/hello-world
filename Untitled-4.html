@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload Example</title>
+</head>
+<body>
+    <!-- Hidden input element for file selection -->
+    <input type="file" id="fileInput" style="display: none">
+    <button class="collapsible">Toggle Textarea</button>
+    <div class="content">
+    
+        <!-- Button to trigger the file dialog -->
+        <button onclick="openFileDialog()">Open File Dialog</button>
+
+        <!-- Text area to display file contents -->
+        <textarea id="fileContents" rows="10" cols="50"></textarea>
+    </div> 
+
+    <!-- Container for displaying div panels -->
+    <div id="outputContainer"></div>
+
+    <script>
+        const collapsibleButtons = document.querySelectorAll('.collapsible');
+        collapsibleButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const content = button.nextElementSibling;
+                content.style.display = content.style.display === 'block' ? 'none' : 'block';                
+            });
+        });
+
+        function openFileDialog() {
+            // Trigger the file input click event
+            document.getElementById('fileInput').click();
+        }
+
+        // Handle file selection
+        document.getElementById('fileInput').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    // Display file contents in the text area
+                    document.getElementById('fileContents').value = e.target.result;
+
+                    // Process each line and create div panels
+                    const lines = e.target.result.split('\n');
+                    xPos = lines[0];
+                    yPos = lines[1];
+                    lines.splice(0, 2);
+
+                    const outputContainer = document.getElementById('outputContainer');
+                    outputContainer.innerHTML = ''; // Clear existing content
+
+                    let currentParentDiv = outputContainer; // Initialize with the top-level container
+
+                    lines.forEach((line, index) => {
+                        var trimmedLine = line.trimLeft(); // Remove leading spaces
+                        const indentationLevel = (line.length - trimmedLine.length) / 2;
+                        trimmedLine = trimmedLine.replace("- [ ] ", "");
+                        
+                        // Nest the div panel within the appropriate parent
+                        if (indentationLevel > 0) {
+                            const divPanel = document.createElement('div');
+                            divPanel.textContent = trimmedLine;                        
+                            divPanel.classList.add('line-sub-panel'); // Add a CSS class for styling
+                            currentParentDiv.appendChild(divPanel);
+                        } else {
+                            // Create a new div panel
+                            const divSubPanel = createDivPanel(trimmedLine, outputContainer);                            
+                            currentParentDiv = divSubPanel;                            
+                        }
+                    });
+
+                    
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Create a new div panel
+        function createDivPanel(content, container) {
+            const divPanel = document.createElement('div');
+            divPanel.classList.add('line-panel'); // Add a CSS class for styling
+
+            const innerGrabPanel = document.createElement('div');
+            innerGrabPanel.textContent = '/////';
+            divPanel.appendChild(innerGrabPanel);
+
+            const button = document.createElement('button');
+            button.textContent = content;
+            button.classList.add('collapsible'); // Add a CSS class for styling  
+            button.addEventListener('click', () => {
+                const content = button.nextElementSibling;
+                const panels = document.querySelectorAll('.content');
+                panels.forEach((panel) => {
+                    panel.style.display = 'none';                    
+                });
+                content.style.display = content.style.display === 'block' ? 'none' : 'block';
+                
+            });          
+            divPanel.appendChild(button);            
+
+            const divSubPanel = document.createElement('div');
+            divSubPanel.classList.add('content'); // Add a CSS class for styling
+            divPanel.appendChild(divSubPanel);
+
+            divPanel.style.position = 'absolute'; // Set absolute positioning
+            divPanel.style.left = xPos; // Initial left position
+            divPanel.style.top = yPos; // Initial top position
+
+            // Make the div panel draggable
+            let isDragging = false;
+            let offsetX, offsetY;
+
+            innerGrabPanel.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                offsetX = e.clientX - divPanel.getBoundingClientRect().left;
+                offsetY = e.clientY - divPanel.getBoundingClientRect().top;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    divPanel.style.left = e.clientX - offsetX + 'px';
+                    divPanel.style.top = e.clientY - offsetY + 'px';
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            container.appendChild(divPanel);
+
+            return divSubPanel;
+        }        
+    </script>
+
+    <style>
+        /* Example styling for the div panels */
+        .line-panel {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #f9f9f9;
+            cursor: grab;
+        }  
+        .line-sub-panel {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: aqua;
+        }        
+        /* Style the button that toggles the collapsible content */
+        .collapsible {
+            background-color: #eee;
+            color: #444;
+            cursor: pointer;
+            padding: 18px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 15px;
+        }
+
+        /* Style the collapsible content (hidden by default) */
+        .content {                        
+            padding: 0 18px;
+            display: none;
+            overflow: hidden;
+            background-color: #f1f1f1;
+        }
+    </style>
+</body>
+</html>
