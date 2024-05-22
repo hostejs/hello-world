@@ -144,8 +144,8 @@
                 element.classList.add('collapsed');
 
                 if (element.parentElement.classList.contains('floating-div')){
-                    element.parentElement.classList.add('zoomed');                
-                    document.querySelector('content').classList.remove('zoomed');  
+                    document.querySelector('zoomed').classList.remove('zoomed');  
+                    element.parentElement.classList.add('zoomed');                                    
                 }                                
             });
             return element;
@@ -177,19 +177,16 @@
         }
                 
         .floating-div {
-            position: relative;
+            display: inline-block;
             border: 1px solid #ccc;
             padding: 10px;
             margin: 5px 0;
             background-color: #f9f9f9;
             transition: transform 0.3s ease; 
         } 
-
-        #outputContainer {
-            position: relative;
-        }
+        
         .zoomed {
-            transform: scale(1.5);
+            transform: scale(1.18);
         }
 
         .floating-sub-div {
