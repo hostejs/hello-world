@@ -3,174 +3,231 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Upload Example</title>
+    <title>Board</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <body>
-    <!-- Hidden input element for file selection -->
-    <input type="file" id="fileInput" style="display: none">
-    <button class="collapsible">Toggle Textarea</button>
-    <div class="content">
     
-        <!-- Button to trigger the file dialog -->
-        <button onclick="openFileDialog()">Open File Dialog</button>
+    <!-- Hidden input element for file selection -->
+    <div class="load-file-div">        
+        <button id="loadFileToggle" class="collapsed">+</button>
+        <div class="content">                
+            <!-- Button to trigger the file dialog -->
+            <button class="file-button" onclick="myFileDialog.open()"><i class="fa fa-file"></i></button>
 
-        <!-- Text area to display file contents -->
-        <textarea id="fileContents" rows="10" cols="50"></textarea>
-    </div> 
+            <!-- Text area to display file contents -->
+            <textarea id="fileContents" rows="10" cols="50"></textarea><input type="file" id="fileDialog" style="display: none">
+        </div> 
+    </div>
 
     <!-- Container for displaying div panels -->
     <div id="outputContainer"></div>
-
+    
     <script>
-        const collapsibleButtons = document.querySelectorAll('.collapsible');
-        collapsibleButtons.forEach((button) => {
-            button.addEventListener('click', () => {
-                const content = button.nextElementSibling;
-                content.style.display = content.style.display === 'block' ? 'none' : 'block';                
-            });
-        });
-
-        function openFileDialog() {
-            // Trigger the file input click event
-            document.getElementById('fileInput').click();
+        
+        const myFileDialog =  new FileDialog('fileDialog');
+        const FileToggle = CreateToggleButton('loadFileToggle');
+                
+        const isValidUrl = urlString=> {
+            try { 
+                return new URL(urlString); 
+            }
+            catch(e){ 
+                return null; 
+            }
         }
 
-        // Handle file selection
-        document.getElementById('fileInput').addEventListener('change', function (event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    // Display file contents in the text area
-                    document.getElementById('fileContents').value = e.target.result;
-
-                    // Process each line and create div panels
-                    const lines = e.target.result.split('\n');
-                    xPos = lines[0];
-                    yPos = lines[1];
-                    lines.splice(0, 2);
-
-                    const outputContainer = document.getElementById('outputContainer');
-                    outputContainer.innerHTML = ''; // Clear existing content
-
-                    let currentParentDiv = outputContainer; // Initialize with the top-level container
-
-                    lines.forEach((line, index) => {
-                        var trimmedLine = line.trimLeft(); // Remove leading spaces
-                        const indentationLevel = (line.length - trimmedLine.length) / 2;
-                        trimmedLine = trimmedLine.replace("- [ ] ", "");
-                        
-                        // Nest the div panel within the appropriate parent
-                        if (indentationLevel > 0) {
-                            const divPanel = document.createElement('div');
-                            divPanel.textContent = trimmedLine;                        
-                            divPanel.classList.add('line-sub-panel'); // Add a CSS class for styling
-                            currentParentDiv.appendChild(divPanel);
-                        } else {
-                            // Create a new div panel
-                            const divSubPanel = createDivPanel(trimmedLine, outputContainer);                            
-                            currentParentDiv = divSubPanel;                            
-                        }
-                    });
-
-                    
-                };
-                reader.readAsText(file);
-            }
-        });
-
-        // Create a new div panel
-        function createDivPanel(content, container) {
-            const divPanel = document.createElement('div');
-            divPanel.classList.add('line-panel'); // Add a CSS class for styling
-
-            const innerGrabPanel = document.createElement('div');
-            innerGrabPanel.textContent = '/////';
-            divPanel.appendChild(innerGrabPanel);
-
-            const button = document.createElement('button');
-            button.textContent = content;
-            button.classList.add('collapsible'); // Add a CSS class for styling  
-            button.addEventListener('click', () => {
-                const content = button.nextElementSibling;
-                const panels = document.querySelectorAll('.content');
-                panels.forEach((panel) => {
-                    panel.style.display = 'none';                    
+        function FileDialog(id) {            
+            this.element = document.getElementById(id);
+            this.element.addEventListener('change', 
+                (event) => {                     
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function (e) { 
+                            var contents = e.target.result;
+                            // Display file contents in the text area
+                            document.getElementById('fileContents').value = contents;
+                            myFileDialog.readFile(contents);                                      
+                        };
+                        reader.readAsText(file); 
+                    }                    
                 });
-                content.style.display = content.style.display === 'block' ? 'none' : 'block';
-                
-            });          
-            divPanel.appendChild(button);            
 
-            const divSubPanel = document.createElement('div');
-            divSubPanel.classList.add('content'); // Add a CSS class for styling
-            divPanel.appendChild(divSubPanel);
+            this.open = function() {
+                this.element.click();
+            }
 
-            divPanel.style.position = 'absolute'; // Set absolute positioning
-            divPanel.style.left = xPos; // Initial left position
-            divPanel.style.top = yPos; // Initial top position
+            this.readFile = function(fileContents) {                
+                // Process each line and create div panels
+                const lines = fileContents.split('\n');
+                    
+                const outputContainer = document.getElementById('outputContainer');
+                outputContainer.innerHTML = ''; // Clear existing content
+    
+                let lastLevel = 0;  
+                let stack = [];
+                stack[stack.length] = outputContainer;
+                stack[stack.length] = outputContainer;
+                lines.forEach((line, index) => {
+                    var trimmedLine = line.trimLeft(); // Remove leading spaces
+                    const indentationLevel = (line.length - trimmedLine.length) / 2;
+                    trimmedLine = trimmedLine.replace("- [ ] ", "");
+    
+                    var doUpALevel = function() {
+                        if (lastLevel < indentationLevel) {
+                            stack[stack.length] = null;
+                        }
+                    }
+
+                    var doDownALevel = function() {
+                        if (lastLevel > indentationLevel) {
+                            stack.pop();                            
+                        }
+                    }
+
+                    if (indentationLevel > 0) { 
+                        var div = document.createElement('div');              
+                        div.textContent = trimmedLine;                        
+                        div.classList.add('floating-sub-div');                                                              
+                        doUpALevel();
+                        doDownALevel();
+                        stack[stack.length - 1] = div;                                                
+                        lastLevel = indentationLevel;
+                    } else {               
+                        doDownALevel();
+                        stack[stack.length - 1] = CreateFloatingBox(trimmedLine); 
+                        lastLevel = 0;                       
+                    }
+                    stack[stack.length - 2].appendChild(stack[stack.length - 1]);
+                });                                 
+            }
+        }
+
+        function CreateFloatingBox(text){            
+            var div = document.createElement('div');
+            div.classList.add('floating-div'); 
+                        
+            div.style.left = 0; // Initial left position
+            div.style.top = 0; // Initial top position
 
             // Make the div panel draggable
             let isDragging = false;
             let offsetX, offsetY;
 
-            innerGrabPanel.addEventListener('mousedown', (e) => {
+            const grip = document.createElement('div');
+            grip.textContent = '///';
+            div.appendChild(grip);
+            grip.addEventListener('mousedown', (e) => {
                 isDragging = true;
-                offsetX = e.clientX - divPanel.getBoundingClientRect().left;
-                offsetY = e.clientY - divPanel.getBoundingClientRect().top;
+                offsetX = e.clientX - div.getBoundingClientRect().left;
+                offsetY = e.clientY - div.getBoundingClientRect().top;
             });
-
             document.addEventListener('mousemove', (e) => {
                 if (isDragging) {
-                    divPanel.style.left = e.clientX - offsetX + 'px';
-                    divPanel.style.top = e.clientY - offsetY + 'px';
+                    div.style.left = e.clientX - offsetX + 'px';
+                    div.style.top = e.clientY - offsetY + 'px';
                 }
             });
-
             document.addEventListener('mouseup', () => {
                 isDragging = false;
             });
+            
+            div.appendChild(CreateToggleButton());                                     
+            div.appendChild(document.createTextNode(text)); 
 
-            container.appendChild(divPanel);
+            const divSubPanel = document.createElement('div');
+            divSubPanel.classList.add('content');
+            divSubPanel.classList.add('collapsed');
+            div.appendChild(divSubPanel); 
+            return div;
+        }
+        
+        function CreateToggleButton(id) {            
+            var element = null;
+            if (id){
+                element = document.getElementById(id);
+            }            
+            else {                
+                element = document.createElement('button'); 
+                element.textContent = '+'; 
+            }                       
 
-            return divSubPanel;
-        }        
+            element.addEventListener('click', () => {                 
+                const allContentBlocks = document.querySelectorAll(".content");  
+                allContentBlocks.forEach((block) => {
+                    if (!block.classList.contains('collapsed')){
+                        block.previousElementSibling.classList.remove('collapsed');
+                        block.classList.add('collapsed');
+                    }                    
+                })
+                element.nextElementSibling.classList.remove('collapsed');
+                element.classList.add('collapsed');
+
+                if (element.parentElement.classList.contains('floating-div')){
+                    element.parentElement.classList.add('zoomed');                
+                    document.querySelector(".content").classList.remove('zoomed');  
+                }                                
+            });
+            return element;
+        }
+
     </script>
-
     <style>
-        /* Example styling for the div panels */
-        .line-panel {
+        .file-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            vertical-align: top;
+        }
+
+        /* Add an icon to the button */
+        .file-button i {
+            margin-right: 5px;
+        }
+
+        .load-file-div{                                    
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 5px 0; 
+            display: inline-block;           
+        }
+                
+        .floating-div {
             border: 1px solid #ccc;
             padding: 10px;
             margin: 5px 0;
             background-color: #f9f9f9;
             cursor: grab;
-        }  
-        .line-sub-panel {
+            position: absolute;
+            transition: transform 0.3s ease;            
+            
+        } 
+        
+        .element.zoomed {
+            transform: scale(1.5);
+        }
+
+        .floating-sub-div {
             border: 1px solid #ccc;
             padding: 10px;
             margin: 5px 0;
             background-color: aqua;
-        }        
-        /* Style the button that toggles the collapsible content */
-        .collapsible {
-            background-color: #eee;
-            color: #444;
-            cursor: pointer;
-            padding: 18px;
-            width: 100%;
-            border: none;
-            text-align: left;
-            outline: none;
-            font-size: 15px;
-        }
-
+        } 
+        
         /* Style the collapsible content (hidden by default) */
         .content {                        
             padding: 0 18px;
-            display: none;
             overflow: hidden;
             background-color: #f1f1f1;
+        }
+
+        .collapsed {
+            display: none;
         }
     </style>
 </body>
