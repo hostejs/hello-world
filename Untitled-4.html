@@ -27,7 +27,10 @@
         
         const myFileDialog =  new FileDialog('fileDialog');
         const FileToggle = CreateToggleButton('loadFileToggle');
-                
+        block.previousElementSibling.classList.remove('collapsed');
+        FileToggle.classList.remove('collapsed');
+        FileToggle.nextElementSibling.classList.add('collapsed');
+                    
         const isValidUrl = urlString=> {
             try { 
                 return new URL(urlString); 
@@ -37,7 +40,8 @@
             }
         }
 
-        function FileDialog(id) {            
+        function FileDialog(id) {      
+                        
             this.element = document.getElementById(id);
             this.element.addEventListener('change', 
                 (event) => {                     
@@ -135,7 +139,7 @@
                         block.previousElementSibling.classList.remove('collapsed'); //show button
                         block.classList.add('collapsed'); // hide content
                     }                    
-                })
+                });
                 element.nextElementSibling.classList.remove('collapsed');
                 element.classList.add('collapsed');
 
