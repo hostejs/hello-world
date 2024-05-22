@@ -132,7 +132,7 @@
                 const allContentBlocks = document.querySelectorAll(".content");  
                 allContentBlocks.forEach((block) => {
                     if (!block.classList.contains('collapsed')){
-                        block.previousSibling.classList.remove('collapsed'); //show button
+                        block.previousElementSibling.classList.remove('collapsed'); //show button
                         block.classList.add('collapsed'); // hide content
                     }                    
                 })
@@ -173,6 +173,7 @@
         }
                 
         .floating-div {
+            position: relative;
             border: 1px solid #ccc;
             padding: 10px;
             margin: 5px 0;
