@@ -107,31 +107,6 @@
         function CreateFloatingBox(text){            
             var div = document.createElement('div');
             div.classList.add('floating-div'); 
-                        
-            div.style.left = 0; // Initial left position
-            div.style.top = 0; // Initial top position
-
-            // Make the div panel draggable
-            let isDragging = false;
-            let offsetX, offsetY;
-
-            const grip = document.createElement('div');
-            grip.textContent = '///';
-            div.appendChild(grip);
-            grip.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                offsetX = e.clientX - div.getBoundingClientRect().left;
-                offsetY = e.clientY - div.getBoundingClientRect().top;
-            });
-            document.addEventListener('mousemove', (e) => {
-                if (isDragging) {
-                    div.style.left = e.clientX - offsetX + 'px';
-                    div.style.top = e.clientY - offsetY + 'px';
-                }
-            });
-            document.addEventListener('mouseup', () => {
-                isDragging = false;
-            });
             
             div.appendChild(CreateToggleButton());                                     
             div.appendChild(document.createTextNode(text)); 
@@ -157,8 +132,8 @@
                 const allContentBlocks = document.querySelectorAll(".content");  
                 allContentBlocks.forEach((block) => {
                     if (!block.classList.contains('collapsed')){
-                        block.previousElementSibling.classList.remove('collapsed');
-                        block.classList.add('collapsed');
+                        block.previousSibling.classList.remove('collapsed'); //show button
+                        block.classList.add('collapsed'); // hide content
                     }                    
                 })
                 element.nextElementSibling.classList.remove('collapsed');
@@ -166,7 +141,7 @@
 
                 if (element.parentElement.classList.contains('floating-div')){
                     element.parentElement.classList.add('zoomed');                
-                    document.querySelector(".content").classList.remove('zoomed');  
+                    document.querySelector('content').classList.remove('zoomed');  
                 }                                
             });
             return element;
@@ -202,13 +177,13 @@
             padding: 10px;
             margin: 5px 0;
             background-color: #f9f9f9;
-            cursor: grab;
-            position: absolute;
-            transition: transform 0.3s ease;            
-            
+            transition: transform 0.3s ease; 
         } 
-        
-        .element.zoomed {
+
+        #outputContainer {
+            position: relative;
+        }
+        .zoomed {
             transform: scale(1.5);
         }
 
