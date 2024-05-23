@@ -24,13 +24,8 @@
     <div id="outputContainer"></div>
     
     <script>
-        
-        const myFileDialog =  new FileDialog('fileDialog');
         const FileToggle = CreateToggleButton('loadFileToggle');
-        //FileToggle.previousElementSibling.classList.remove('collapsed');
-        FileToggle.classList.remove('collapsed');
-        FileToggle.nextElementSibling.classList.add('collapsed');
-                    
+        const myFileDialog =  new FileDialog('fileDialog');
         const isValidUrl = urlString=> {
             try { 
                 return new URL(urlString); 
@@ -54,7 +49,10 @@
                             document.getElementById('fileContents').value = contents;
                             myFileDialog.readFile(contents);                                      
                         };
-                        reader.readAsText(file); 
+                        reader.readAsText(file);
+
+                        FileToggle.classList.remove('collapsed');
+                        FileToggle.nextElementSibling.classList.add('collapsed');
                     }                    
                 });
 
@@ -79,8 +77,10 @@
                     trimmedLine = trimmedLine.replace("- [ ] ", "");
                     
                     var ele = null;
-                    var checkForAddress = trimmedLine.split('|');
-                    if (checkForAddress.length && checkForAddress.length > 1){
+                    var splitText =[];
+                    splitText.push(trimmedLine.split("|"));
+                    
+                    if (splitText.length > 1){
                         ele = document.createElement('a');
                         ele.setAttribute("href", checkForAddress[1]); 
                         ele.innerHTML = checkForAddress[0];
@@ -156,7 +156,10 @@
                 element.classList.add('collapsed');
 
                 if (element.parentElement.classList.contains('floating-div')){
-                    document.querySelector('zoomed').classList.remove('zoomed');  
+                    var theZoomedItem = document.querySelector('zoomed');
+                    if (theZoomedItem){
+                        theZoomedItem.classList.remove('zoomed');  
+                    }
                     element.parentElement.classList.add('zoomed');                                    
                 }                                
             });
