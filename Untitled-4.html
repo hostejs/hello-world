@@ -21,11 +21,12 @@
     </div>
 
     <!-- Container for displaying div panels -->
-    <div id="outputContainer"></div>
+    <div id="tileOutputContainer"></div>
     
     <script>
         const FileToggle = CreateToggleButton('loadFileToggle');
         const myFileDialog =  new FileDialog('fileDialog');
+        const tileOutput = new TileOutput();
         const isValidUrl = urlString=> {
             try { 
                 return new URL(urlString); 
@@ -34,7 +35,6 @@
                 return null; 
             }
         }
-
         function FileDialog(id) {      
                         
             this.element = document.getElementById(id);
@@ -62,78 +62,86 @@
 
             this.readFile = function(fileContents) {                
                 // Process each line and create div panels
-                const lines = fileContents.split('\n');
-                    
-                const outputContainer = document.getElementById('outputContainer');
-                outputContainer.innerHTML = ''; // Clear existing content
-    
-                let lastLevel = 0;  
-                let stack = [];
-                stack[stack.length] = outputContainer;
-                stack[stack.length] = outputContainer;
+                const lines = fileContents.split('\n');                    
+                tileOutput.element.innerHTML = ''; // Clear existing content
+                tileOutput.read(lines);                                     
+            }
+        }
+        function TileOutput(){
+            this.element = document.getElementById('tileOutputContainer'); 
+            var createLabel = (textContent) => {
+                var splitText = textContent.split('|');
+                if (splitText.length > 1){
+                    ele = document.createElement('a');
+                    ele.setAttribute("href", splitText[1]); 
+                    ele.innerHTML = splitText[0];
+                    ele.target = '_blank';
+                }
+                else {
+                    ele = document.createTextNode(textContent);
+                }
+                return ele;
+            }   
+            var stack = [];
+            this.read = (lines) => {
+                stack[stack.length] = { element: this.element, level: 0 };
+                stack[stack.length] = stack[stack.length - 1];
                 lines.forEach((line, index) => {
                     var trimmedLine = line.trimLeft(); // Remove leading spaces
                     const indentationLevel = (line.length - trimmedLine.length) / 2;
-                    trimmedLine = trimmedLine.replace("- [ ] ", "");
-                    
-                    var ele = null;
-                    var splitText = trimmedLine.split('|');
-                    if (splitText.length > 1){
-                        ele = document.createElement('a');
-                        ele.setAttribute("href", splitText[1]); 
-                        ele.innerHTML = splitText[0];
-                        ele.target = '_blank';
-                    }
-                    else {
-                        ele = document.createTextNode(trimmedLine);
-                    }
-    
-                    var doUpALevel = function() {
-                        if (lastLevel < indentationLevel) {
-                            stack[stack.length] = null;
-                        }
-                    }
-
-                    var doDownALevel = function() {
-                        if (lastLevel > indentationLevel) {
-                            stack.pop();                            
-                        }
-                    }
-
-                    var toAdd = null;
-                    if (indentationLevel > 0) { 
-                        var div = document.createElement('div');              
-                        div.appendChild(ele);                        
-                        div.classList.add('floating-sub-div');                                                              
-                        doUpALevel();
-                        doDownALevel();
-                        stack[stack.length - 1] = div;
-                        toAdd = div;
-                        lastLevel = indentationLevel;
-                    } else {               
-                        doDownALevel();
-                        var obj = CreateFloatingBox(ele);
-                        stack[stack.length - 1] = obj.s;
-                        toAdd = obj.p;
-                        lastLevel = 0;                       
-                    }
-                    stack[stack.length - 2].appendChild(toAdd);
-                });                                 
+                    trimmedLine = trimmedLine.replace("- [ ] ", "");                                                            
+                    append(
+                        new Tile(
+                            createLabel(trimmedLine), 
+                            indentationLevel));
+                }); 
+            }
+            var append = (tile) => {
+                doUpALevel(tile.level);
+                doDownALevel(tile.level);                
+                stack[stack.length - 1] = tile;
+                stack[stack.length - 2].element.appendChild(tile.element);
+            }
+            var doUpALevel = (indentationLevel) => {
+                var parentTile = stack[stack.length - 1];
+                if (parentTile.level < indentationLevel) {                    
+                    stack[stack.length - 1] = { element: parentTile.addContent(), level: parentTile.level }; // Add content container to parent and overlay to stack
+                    stack[stack.length] = parentTile; // Push temp parent as placeholder for sub-tile
+                }                        
+            } 
+            var doDownALevel = (indentationLevel) => {
+                if (stack[stack.length - 1].level > indentationLevel) {
+                    stack.pop();                            
+                }
             }
         }
 
-        function CreateFloatingBox(content){            
+        function Tile(label, indentationLevel){            
+            this.level = indentationLevel;
             var div = document.createElement('div');
-            div.classList.add('floating-div');             
-            div.appendChild(CreateToggleButton());                                     
-            div.appendChild(content); 
-            const divSubPanel = document.createElement('div');
-            divSubPanel.classList.add('content');
-            divSubPanel.classList.add('collapsed');
-            div.appendChild(divSubPanel); 
-            return { p: div, s: divSubPanel };
-        }
-        
+            if (this.level > 0){
+                div.classList.add('sub-tile'); 
+            }
+            else {
+                div.classList.add('tile'); 
+            }
+            div.appendChild(label); 
+            
+            this.element = div;
+            this.addContent = function () {
+                if (this.level > 0){
+                    return div;
+                }
+                else {
+                    div.appendChild(CreateToggleButton());  
+                    const divSubPanel = document.createElement('div');
+                    divSubPanel.classList.add('content');
+                    divSubPanel.classList.add('collapsed');
+                    div.appendChild(divSubPanel); 
+                    return divSubPanel;
+                }                
+            }
+        } 
         function CreateToggleButton(id) {            
             var element = null;
             if (id){
@@ -155,12 +163,12 @@
                 element.nextElementSibling.classList.remove('collapsed');
                 element.classList.add('collapsed');
 
-                if (element.parentElement.classList.contains('floating-div')){
-                    var theZoomedItem = document.querySelector('.zoomed');
-                    
-                    if (theZoomedItem){
-                        theZoomedItem.classList.remove('zoomed');  
-                    }
+                var theZoomedItem = document.querySelector('.zoomed');                    
+                if (theZoomedItem){
+                    theZoomedItem.classList.remove('zoomed');  
+                }
+
+                if (element.parentElement.classList.contains('tile')){                    
                     element.parentElement.classList.add('zoomed');                                    
                 }                                
             });
@@ -192,7 +200,7 @@
             display: inline-block;           
         }
                 
-        .floating-div {
+        .tile {
             display: inline-block;
             border: 1px solid #ccc;
             padding: 10px;
@@ -202,10 +210,10 @@
         } 
         
         .zoomed {
-            transform: scale(1.33);
+            transform: scale(1.12);
         }
 
-        .floating-sub-div {
+        .sub-tile {
             border: 1px solid #ccc;
             padding: 10px;
             margin: 5px 0;
