@@ -27,7 +27,7 @@
         
         const myFileDialog =  new FileDialog('fileDialog');
         const FileToggle = CreateToggleButton('loadFileToggle');
-        block.previousElementSibling.classList.remove('collapsed');
+        //FileToggle.previousElementSibling.classList.remove('collapsed');
         FileToggle.classList.remove('collapsed');
         FileToggle.nextElementSibling.classList.add('collapsed');
                     
@@ -77,6 +77,18 @@
                     var trimmedLine = line.trimLeft(); // Remove leading spaces
                     const indentationLevel = (line.length - trimmedLine.length) / 2;
                     trimmedLine = trimmedLine.replace("- [ ] ", "");
+                    
+                    var ele = null;
+                    var checkForAddress = trimmedLine.split('|');
+                    if (checkForAddress.length && checkForAddress.length > 1){
+                        ele = document.createElement('a');
+                        ele.setAttribute("href", checkForAddress[1]); 
+                        ele.innerHTML = checkForAddress[0];
+                        ele.target = '_blank';
+                    }
+                    else {
+                        ele = document.createTextNode(trimmedLine);
+                    }
     
                     var doUpALevel = function() {
                         if (lastLevel < indentationLevel) {
@@ -92,7 +104,7 @@
 
                     if (indentationLevel > 0) { 
                         var div = document.createElement('div');              
-                        div.textContent = trimmedLine;                        
+                        div.appendChild(ele);                        
                         div.classList.add('floating-sub-div');                                                              
                         doUpALevel();
                         doDownALevel();
@@ -186,7 +198,7 @@
         } 
         
         .zoomed {
-            transform: scale(1.18);
+            transform: scale(1.33);
         }
 
         .floating-sub-div {
