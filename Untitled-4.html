@@ -79,7 +79,6 @@
                     var ele = null;
                     var splitText =[];
                     splitText.push(trimmedLine.split("|"));
-                    
                     if (splitText.length > 1){
                         ele = document.createElement('a');
                         ele.setAttribute("href", checkForAddress[1]); 
@@ -112,7 +111,7 @@
                         lastLevel = indentationLevel;
                     } else {               
                         doDownALevel();
-                        stack[stack.length - 1] = CreateFloatingBox(trimmedLine); 
+                        stack[stack.length - 1] = CreateFloatingBox(ele); 
                         lastLevel = 0;                       
                     }
                     stack[stack.length - 2].appendChild(stack[stack.length - 1]);
@@ -120,12 +119,12 @@
             }
         }
 
-        function CreateFloatingBox(text){            
+        function CreateFloatingBox(content){            
             var div = document.createElement('div');
             div.classList.add('floating-div'); 
             
             div.appendChild(CreateToggleButton());                                     
-            div.appendChild(document.createTextNode(text)); 
+            div.appendChild(content); 
 
             const divSubPanel = document.createElement('div');
             divSubPanel.classList.add('content');
@@ -157,6 +156,7 @@
 
                 if (element.parentElement.classList.contains('floating-div')){
                     var theZoomedItem = document.querySelector('zoomed');
+                    alert(theZoomedItem);
                     if (theZoomedItem){
                         theZoomedItem.classList.remove('zoomed');  
                     }
