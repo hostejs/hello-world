@@ -79,6 +79,7 @@
                     var ele = null;
                     var splitText =[];
                     splitText.push(trimmedLine.split("|"));
+                    alert(splitText.length);
                     if (splitText.length > 1){
                         ele = document.createElement('a');
                         ele.setAttribute("href", checkForAddress[1]); 
@@ -128,6 +129,7 @@
 
             const divSubPanel = document.createElement('div');
             divSubPanel.classList.add('content');
+            alert('into the sub panel');
             divSubPanel.classList.add('collapsed');
             div.appendChild(divSubPanel); 
             return div;
