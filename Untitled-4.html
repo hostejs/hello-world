@@ -77,9 +77,7 @@
                     trimmedLine = trimmedLine.replace("- [ ] ", "");
                     
                     var ele = null;
-                    var splitText =[];
-                    splitText.push(trimmedLine.split('|'));
-                    
+                    var splitText = trimmedLine.split('|'));
                     if (splitText.length > 1){
                         ele = document.createElement('a');
                         ele.setAttribute("href", splitText[1]); 
@@ -102,37 +100,38 @@
                         }
                     }
 
+                    var toAdd = null;
                     if (indentationLevel > 0) { 
                         var div = document.createElement('div');              
                         div.appendChild(ele);                        
                         div.classList.add('floating-sub-div');                                                              
                         doUpALevel();
                         doDownALevel();
-                        stack[stack.length - 1] = div;                                                
+                        stack[stack.length - 1] = div;
+                        toAdd = div;
                         lastLevel = indentationLevel;
                     } else {               
                         doDownALevel();
-                        stack[stack.length - 1] = CreateFloatingBox(ele); 
+                        var obj = CreateFloatingBox(ele);
+                        stack[stack.length - 1] = obj.s;
+                        toAdd = obj.p;
                         lastLevel = 0;                       
                     }
-                    stack[stack.length - 2].appendChild(stack[stack.length - 1]);
+                    stack[stack.length - 2].appendChild(toAdd);
                 });                                 
             }
         }
 
         function CreateFloatingBox(content){            
             var div = document.createElement('div');
-            div.classList.add('floating-div'); 
-            
+            div.classList.add('floating-div');             
             div.appendChild(CreateToggleButton());                                     
             div.appendChild(content); 
-
             const divSubPanel = document.createElement('div');
             divSubPanel.classList.add('content');
-            alert('into the sub panel');
             divSubPanel.classList.add('collapsed');
             div.appendChild(divSubPanel); 
-            return div;
+            return { p: div, s: divSubPanel };
         }
         
         function CreateToggleButton(id) {            
