@@ -24,6 +24,19 @@
     <div id="tileOutputContainer"></div>
     
     <script>
+        
+        /*
+         *************************************************************************************************************
+         ************************************************************************************************************** 
+         * README - Where to begin?
+         * #1 - Inits via FileDialog/myFileDialog's filepicker .onload calling the internal readFile (of myFileDialog)
+         * #2 - readFile calls the TileOutput's internal read function
+         * #3 - TileOutput's internal read processes each individual line in the file
+         * #4   - Sets identation level and calls TileOutput's append to add "Tile" element to dom
+         **************************************************************************************************************
+         **************************************************************************************************************
+        */        
+        
         const FileToggle = CreateToggleButton('loadFileToggle');
         const myFileDialog =  new FileDialog('fileDialog');
         const tileOutput = new TileOutput();
@@ -68,13 +81,30 @@
             }
         }
         function TileOutput(){
-            this.element = document.getElementById('tileOutputContainer'); 
+            this.element = document.getElementById('tileOutputContainer');
+            var coords = { holdingX: 0, holdingY: 65};
+            var extractAnyUrl = (inputString) => {                
+                const lastOpenParenIndex = inputString.lastIndexOf('(');
+                if (lastOpenParenIndex === -1) {
+                    // No open parenthesis found
+                    return null;
+                }
+                const matchingCloseParenIndex = inputString.indexOf(')', lastOpenParenIndex);
+                if (matchingCloseParenIndex === -1) {
+                    // No matching closing parenthesis found
+                    return null;
+                }
+                // Extract the content between the parentheses
+                const extractedContent = inputString.slice(lastOpenParenIndex + 1, matchingCloseParenIndex);
+                return isValidUrl(extractedContent);
+            } 
             var createLabel = (textContent) => {
-                var splitText = textContent.split('|');
-                if (splitText.length > 1){
+                var validURLIfSet = extractAnyUrl(textContent);                
+                if (validURLIfSet){                                       
                     ele = document.createElement('a');
-                    ele.setAttribute("href", splitText[1]); 
-                    ele.innerHTML = splitText[0];
+                    ele.setAttribute("href", validURLIfSet.toString());
+                    ele.textContent = textContent.slice(0, textContent.lastIndexOf('('));
+                    
                     ele.target = '_blank';
                 }
                 else {
@@ -89,14 +119,17 @@
                 lines.forEach((line, index) => {
                     var trimmedLine = line.trimLeft(); // Remove leading spaces
                     const indentationLevel = (line.length - trimmedLine.length) / 2;
-                    trimmedLine = trimmedLine.replace("- [ ] ", "");                                                            
-                    append(
-                        new Tile(
-                            createLabel(trimmedLine), 
-                            indentationLevel));
+                    trimmedLine = trimmedLine.replace("- [ ] ", ""); 
+                    if (trimmedLine.length > 0){                                                           
+                        append(
+                            new Tile(
+                                createLabel(trimmedLine), 
+                                indentationLevel));
+                    }
                 }); 
             }
             var append = (tile) => {
+                tile.setPosition(coords);                
                 doUpALevel(tile.level);
                 doDownALevel(tile.level);                
                 stack[stack.length - 1] = tile;
@@ -110,26 +143,56 @@
                 }                        
             } 
             var doDownALevel = (indentationLevel) => {
-                if (stack[stack.length - 1].level > indentationLevel) {
-                    stack.pop();                            
-                }
+                while (stack[stack.length - 1].level > indentationLevel) {
+                    stack.pop();
+                }                
             }
         }
 
         function Tile(label, indentationLevel){            
             this.level = indentationLevel;
-            var div = document.createElement('div');
+            var div = document.createElement('div');                       
             if (this.level > 0){
                 div.classList.add('sub-tile'); 
             }
             else {
-                div.classList.add('tile'); 
+                div.style.height =  '500px';
+                div.style.width =  '300px';                
+                div.classList.add('tile');
+                
+                // some sub-level tasks
+                var top = document.createElement('div');
+                top.innerHTML = '&nbsp;';
+                top.classList.add('dragging-handle');
+                div.appendChild(top); 
+                let isDragging = false;
+                let offsetX, offsetY;
+                
+                top.addEventListener('mousedown', (e) => {
+                    e.preventDefault();             
+                    isDragging = true;                                               
+                    top.style.cursor = 'grabbing';
+                });
+               
+                document.addEventListener('mousemove', (e) => {
+                    if (isDragging) {
+                        const newX = e.clientX;
+                        const newY = e.clientY;
+                        div.style.left = `${newX}px`;
+                        div.style.top = `${newY}px`;
+                    }
+                });
+                
+                document.addEventListener('mouseup', () => {
+                    isDragging = false;
+                    top.style.cursor = 'grab';
+                });
             }
             div.appendChild(label); 
             
             this.element = div;
-            this.addContent = function () {
-                if (this.level > 0){
+            this.addContent = function () {                
+                if (this.level > 0){                   
                     return div;
                 }
                 else {
@@ -137,9 +200,22 @@
                     const divSubPanel = document.createElement('div');
                     divSubPanel.classList.add('content');
                     divSubPanel.classList.add('collapsed');
-                    div.appendChild(divSubPanel); 
+                    div.appendChild(divSubPanel);                     
                     return divSubPanel;
                 }                
+            }
+            this.setPosition = (coords) => {
+                if (this.level == 0){
+                    div.style.left = `${coords.holdingX}px`;
+                    div.style.top = `${coords.holdingY}px`;
+                    if ((coords.holdingX + 450) < window.innerWidth){
+                        coords.holdingX += 150;
+                    }
+                    else {
+                        coords.holdingX = 0;
+                        coords.holdingY += 50;
+                    }
+                }
             }
         } 
         function CreateToggleButton(id) {            
@@ -153,23 +229,30 @@
             }                       
 
             element.addEventListener('click', () => {                 
-                const allContentBlocks = document.querySelectorAll(".content");  
+                const allContentBlocks = document.querySelectorAll(".content"); 
+                var isExpanding = element.textContent == '+'; 
                 allContentBlocks.forEach((block) => {
                     if (!block.classList.contains('collapsed')){
-                        block.previousElementSibling.classList.remove('collapsed'); //show button
+                        block.previousElementSibling.textContent = '+';                         
                         block.classList.add('collapsed'); // hide content
+                        block.parentElement.style.zIndex = 0;
                     }                    
                 });
-                element.nextElementSibling.classList.remove('collapsed');
-                element.classList.add('collapsed');
+                if (isExpanding){                
+                    element.nextElementSibling.classList.remove('collapsed');
+                    element.textContent = '-';
+                    element.parentElement.style.zIndex = 1;
+                }
 
                 var theZoomedItem = document.querySelector('.zoomed');                    
                 if (theZoomedItem){
                     theZoomedItem.classList.remove('zoomed');  
                 }
 
-                if (element.parentElement.classList.contains('tile')){                    
-                    element.parentElement.classList.add('zoomed');                                    
+                if (isExpanding){
+                    if (element.parentElement.classList.contains('tile')){                    
+                        element.parentElement.classList.add('zoomed');                                    
+                    }
                 }                                
             });
             return element;
@@ -197,39 +280,47 @@
             border: 1px solid #ccc;
             padding: 10px;
             margin: 5px 0; 
-            display: inline-block;           
+            position: absolute;              
         }
-                
-        .tile {
-            display: inline-block;
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin: 5px 0;
-            background-color: #f9f9f9;
-            transition: transform 0.3s ease; 
-        } 
         
+        .dragging-handle {            
+            background-color: black;
+            cursor: grab;
+            position: relative;
+            clear:both;
+        }
+
         .zoomed {
             transform: scale(1.12);
+            transform-origin: top left; /* Set the desired origin */                                 
         }
+          
+        /* Style the collapsible content (hidden by default) */
+        .content {               
+            /*background-color: #f1f1f1;*/
+        }
+
+        .collapsed {
+            display: none;
+        }        
+
+        .tile {
+            position:absolute;
+            border: 2px solid #000;
+            
+            background-color: #f9f9f9;
+            transition: transform 0.3s ease; 
+            resize: both; /* Enable resizing cursor */
+            overflow: auto; /* Show scrollbars if content overflows */
+        } 
 
         .sub-tile {
             border: 1px solid #ccc;
             padding: 10px;
             margin: 5px 0;
             background-color: aqua;
-        } 
+        }         
         
-        /* Style the collapsible content (hidden by default) */
-        .content {                        
-            padding: 0 18px;
-            overflow: hidden;
-            background-color: #f1f1f1;
-        }
-
-        .collapsed {
-            display: none;
-        }
     </style>
 </body>
 </html>
