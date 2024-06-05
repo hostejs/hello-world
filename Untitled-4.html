@@ -10,13 +10,13 @@
     
     <!-- Hidden input element for file selection -->
     <div class="load-file-div">        
-        <button id="loadFileToggle" class="collapsed">+</button>
+        <button id="loadFileToggle">-</button>
         <div class="content">                
-            <!-- Button to trigger the file dialog -->
-            <button class="file-button" onclick="myFileDialog.open()"><i class="fa fa-file"></i></button>
+            <!-- Button to open filePicker -->
+            <button class="file-button" onclick="tileInput.openFilePicker()"><i class="fa fa-file"></i></button>
 
             <!-- Text area to display file contents -->
-            <textarea id="fileContents" rows="10" cols="50"></textarea><input type="file" id="fileDialog" style="display: none">
+            <textarea id="fileTextArea" rows="10" cols="50"></textarea><input type="file" id="filePicker" style="display: none">
         </div> 
     </div>
 
@@ -26,64 +26,68 @@
     <script>
         
         /*
-         *************************************************************************************************************
+         **************************************************************************************************************
          ************************************************************************************************************** 
          * README - Where to begin?
-         * #1 - Inits via FileDialog/myFileDialog's filepicker .onload calling the internal readFile (of myFileDialog)
-         * #2 - readFile calls the TileOutput's internal read function
-         * #3 - TileOutput's internal read processes each individual line in the file
-         * #4   - Sets identation level and calls TileOutput's append to add "Tile" element to dom
+         * #1 - TileInput() :
+         * #2   - filePicker {{onload}} calling <<load>>
+         * #3   - fileTextArea {{onblur}} calling <<load>>
+         * #4   - {{page_load}} calling <<load>>
+         * #5 - TileOutput <<load>> is iterating over each individual line of text from input
+         * #6   - An identation level is set and TileOutput <<append>> is called to add each Tile to dom
          **************************************************************************************************************
          **************************************************************************************************************
         */        
-        
-        const FileToggle = CreateToggleButton('loadFileToggle');
-        const myFileDialog =  new FileDialog('fileDialog');
+                
+        const tileInput =  new TileInput();
         const tileOutput = new TileOutput();
-        const isValidUrl = urlString=> {
-            try { 
-                return new URL(urlString); 
+        tileOutput.load(tileInput.fileTextArea.value);
+        function TileInput() { 
+            const self = this;     
+            const loadFileToggle = CreateToggleButton('loadFileToggle');
+            const filePicker = document.getElementById('filePicker');
+            filePicker.onchange = (event) => {                     
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {                             
+                        fileTextArea.value = e.target.result;
+                        tileOutput.load(fileTextArea.value);                                     
+                    };
+                    reader.readAsText(file);                        
+                }                    
             }
-            catch(e){ 
-                return null; 
+
+            const fileTextArea = document.getElementById('fileTextArea');
+            fileTextArea.addEventListener('blur', 
+                (event) => {
+                    tileOutput.load(fileTextArea.value); 
+                }
+            )            
+            
+            var collapse = () => {
+                if (!loadFileToggle.nextElementSibling.classList.contains('collapsed')){                    
+                    loadFileToggle.textContent = '+'; 
+                    loadFileToggle.nextElementSibling.classList.add('collapsed');
+                }                
             }
+            var openFilePicker = () => {
+                filePicker.click();
+            }     
+            return { collapse: collapse, openFilePicker: openFilePicker, fileTextArea: fileTextArea };
         }
-        function FileDialog(id) {      
-                        
-            this.element = document.getElementById(id);
-            this.element.addEventListener('change', 
-                (event) => {                     
-                    const file = event.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = function (e) { 
-                            var contents = e.target.result;
-                            // Display file contents in the text area
-                            document.getElementById('fileContents').value = contents;
-                            myFileDialog.readFile(contents);                                      
-                        };
-                        reader.readAsText(file);
-
-                        FileToggle.classList.remove('collapsed');
-                        FileToggle.nextElementSibling.classList.add('collapsed');
-                    }                    
-                });
-
-            this.open = function() {
-                this.element.click();
+        function TileOutput(){            
+            const element = document.getElementById('tileOutputContainer');
+            const coords = { holdingX: 0, holdingY: 65};
+            const isValidUrl = urlString=> {
+                try { 
+                    return new URL(urlString); 
+                }
+                catch(e){ 
+                    return null; 
+                }
             }
-
-            this.readFile = function(fileContents) {                
-                // Process each line and create div panels
-                const lines = fileContents.split('\n');                    
-                tileOutput.element.innerHTML = ''; // Clear existing content
-                tileOutput.read(lines);                                     
-            }
-        }
-        function TileOutput(){
-            this.element = document.getElementById('tileOutputContainer');
-            var coords = { holdingX: 0, holdingY: 65};
-            var extractAnyUrl = (inputString) => {                
+            const extractAnyUrl = (inputString) => {                
                 const lastOpenParenIndex = inputString.lastIndexOf('(');
                 if (lastOpenParenIndex === -1) {
                     // No open parenthesis found
@@ -98,7 +102,7 @@
                 const extractedContent = inputString.slice(lastOpenParenIndex + 1, matchingCloseParenIndex);
                 return isValidUrl(extractedContent);
             } 
-            var createLabel = (textContent) => {
+            const createLabel = (textContent) => {
                 var validURLIfSet = extractAnyUrl(textContent);                
                 if (validURLIfSet){                                       
                     ele = document.createElement('a');
@@ -112,56 +116,69 @@
                 }
                 return ele;
             }   
-            var stack = [];
-            this.read = (lines) => {
-                stack[stack.length] = { element: this.element, level: 0 };
-                stack[stack.length] = stack[stack.length - 1];
-                lines.forEach((line, index) => {
-                    var trimmedLine = line.trimLeft(); // Remove leading spaces
+            const stack = []; 
+            const getLastTile = () => {
+                return stack[stack.length - 1];
+            }
+            const setAtLevel = (tile) => {
+                stack[stack.length - 1] = tile;
+                return stack[stack.length - 2];
+            }
+            const addLevel = (tile) => {
+                stack[stack.length] = tile;
+            }
+            const removeLevel = () => {
+                stack.pop();
+            }
+            const load = (input) => {
+                element.innerHTML = ''; // Clear existing
+                addLevel({ element: element, level: 0 });
+                addLevel(getLastTile());
+                input.split('\n').forEach((line, index) => {
+                    let trimmedLine = line.trimLeft(); // Remove leading spaces
                     const indentationLevel = (line.length - trimmedLine.length) / 2;
                     trimmedLine = trimmedLine.replace("- [ ] ", ""); 
                     if (trimmedLine.length > 0){                                                           
-                        append(
-                            new Tile(
+                        append(new Tile(
                                 createLabel(trimmedLine), 
                                 indentationLevel));
+                        tileInput.collapse(); // only necessary ONCE, but ok to repeat!
                     }
-                }); 
+                });                 
             }
-            var append = (tile) => {
-                tile.setPosition(coords);                
-                doUpALevel(tile.level);
-                doDownALevel(tile.level);                
-                stack[stack.length - 1] = tile;
-                stack[stack.length - 2].element.appendChild(tile.element);
-            }
-            var doUpALevel = (indentationLevel) => {
-                var parentTile = stack[stack.length - 1];
-                if (parentTile.level < indentationLevel) {                    
-                    stack[stack.length - 1] = { element: parentTile.addContent(), level: parentTile.level }; // Add content container to parent and overlay to stack
-                    stack[stack.length] = parentTile; // Push temp parent as placeholder for sub-tile
-                }                        
-            } 
-            var doDownALevel = (indentationLevel) => {
-                while (stack[stack.length - 1].level > indentationLevel) {
-                    stack.pop();
+            const append = (nextTile) => {
+                nextTile.setPosition(coords);
+                var lastTile = getLastTile();
+                if (lastTile.level < nextTile.level) { // next tile's level is greater/deeper than last tile
+                    lastTile.element = lastTile.setContent();
+                    addLevel(nextTile);
+                }
+                else {
+                    while (lastTile.level > nextTile.level) { // last tile's level is greater/deeper than next tile
+                        removeLevel();
+                        lastTile = getLastTile();
+                    }  
+                    lastTile = setAtLevel(nextTile);
                 }                
-            }
+                
+                alert(lastTile.element.internalTileId);
+                lastTile.element.appendChild(nextTile.element);
+            }            
+            return { load: load };
         }
-
-        function Tile(label, indentationLevel){            
-            this.level = indentationLevel;
-            var div = document.createElement('div');                       
-            if (this.level > 0){
+        function Tile(label, indentationLevel){                      
+            const level = indentationLevel;
+            const div = document.createElement('div');                       
+            if (level > 0){
                 div.classList.add('sub-tile'); 
             }
             else {
                 div.style.height =  '500px';
                 div.style.width =  '300px';                
                 div.classList.add('tile');
-                
+                div.internalTileId = label.textContent.replace(" ", ""); 
                 // some sub-level tasks
-                var top = document.createElement('div');
+                const top = document.createElement('div');
                 top.innerHTML = '&nbsp;';
                 top.classList.add('dragging-handle');
                 div.appendChild(top); 
@@ -190,22 +207,22 @@
             }
             div.appendChild(label); 
             
-            this.element = div;
-            this.addContent = function () {                
-                if (this.level > 0){                   
-                    return div;
-                }
-                else {
+            const element = div;
+            var setContent = () => {
+                var result = div;                
+                if (level == 0){ 
                     div.appendChild(CreateToggleButton());  
                     const divSubPanel = document.createElement('div');
+                    divSubPanel.internalTileId = div.internalTileId;
                     divSubPanel.classList.add('content');
                     divSubPanel.classList.add('collapsed');
                     div.appendChild(divSubPanel);                     
-                    return divSubPanel;
+                    result = divSubPanel;
                 }                
+                return result;
             }
-            this.setPosition = (coords) => {
-                if (this.level == 0){
+            var setPosition = (coords) => {
+                if (level == 0){
                     div.style.left = `${coords.holdingX}px`;
                     div.style.top = `${coords.holdingY}px`;
                     if ((coords.holdingX + 450) < window.innerWidth){
@@ -217,6 +234,7 @@
                     }
                 }
             }
+            return { setContent: setContent, setPosition: setPosition, element: element, level: level }
         } 
         function CreateToggleButton(id) {            
             var element = null;
@@ -231,7 +249,7 @@
 
             element.addEventListener('click', () => {                 
                 const allContentBlocks = document.querySelectorAll(".content"); 
-                var isExpanding = element.textContent == '+'; 
+                const isExpanding = element.textContent == '+'; 
                 allContentBlocks.forEach((block) => {
                     if (!block.classList.contains('collapsed')){
                         block.previousElementSibling.textContent = '+';                         
@@ -245,7 +263,7 @@
                     element.parentElement.style.zIndex = 1;
                 }
 
-                var theZoomedItem = document.querySelector('.zoomed');                    
+                const theZoomedItem = document.querySelector('.zoomed'); 
                 if (theZoomedItem){
                     theZoomedItem.classList.remove('zoomed');  
                 }
