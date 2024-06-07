@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Board</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body>
     
@@ -17,8 +17,8 @@
 
             <!-- Text area to display file contents -->
             <textarea id="fileTextArea" rows="10" cols="50"></textarea><input type="file" id="filePicker" style="display: none">
-            <button class="file-button" onclick="tileInput.getOnlineFile(document.getElementById('link1'))"><i class="fa-solid fa-globe"></i></button><input id="link1"/>
-            <button class="file-button" onclick="tileInput.getOnlineFile(document.getElementById('link2'))"><i class="fa-solid fa-globe"></i></button><input id="link2"/>
+            <button class="file-button" onclick="tileInput.getOnlineFile(document.getElementById('link1').value)"><i class="fa-solid fa-globe"></i></button><input id="link1"/>
+            <button class="file-button" onclick="tileInput.getOnlineFile(document.getElementById('link2').value)"><i class="fa-solid fa-globe"></i></button><input id="link2"/>
         </div> 
     </div>
 
