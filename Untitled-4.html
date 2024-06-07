@@ -73,17 +73,17 @@
                     loadFileToggle.nextElementSibling.classList.add('collapsed');
                 }                
             }
-            var getOnlineFile = async (onlineFileUrl) => {            
-                try {
-                    const response = await fetch(onlineFileUrl);
-                    if (response.ok) {
-                        tileOutput.load(await response.text());
-                    } else {
-                        alert("Error loading content:", response.status);
-                    }
-                } catch (error) {
-                    alert("Error fetching data:", error);
-                }        
+            var getOnlineFile = (onlineFileUrl) => { 
+                alert(onlineFileUrl);
+                fetch(onlineFileUrl)
+                .then(response => response.text())
+                .then(data => {
+                    alert(data); // Process the data here
+                    tileOutput.load(data);
+                })
+                .catch(error => {
+                    alert('Error fetching data:', error);
+                });        
             }
             var openFilePicker = () => {
                 filePicker.click();
