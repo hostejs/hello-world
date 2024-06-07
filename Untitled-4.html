@@ -74,15 +74,14 @@
                 }                
             }
             var getOnlineFile = (onlineFileUrl) => { 
-                alert(onlineFileUrl);
-                fetch(onlineFileUrl)
+                fetch('https://cors-anywhere.herokuapp.com/' + onlineFileUrl)
                 .then(response => response.text())
                 .then(data => {
                     alert(data); // Process the data here
                     tileOutput.load(data);
                 })
                 .catch(error => {
-                    alert('Error fetching data:', error);
+                    alert('Error fetching data: ' + error);
                 });        
             }
             var openFilePicker = () => {
