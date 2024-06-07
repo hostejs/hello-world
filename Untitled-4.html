@@ -17,8 +17,6 @@
 
             <!-- Text area to display file contents -->
             <textarea id="fileTextArea" rows="10" cols="50"></textarea><input type="file" id="filePicker" style="display: none">
-            <button class="file-button" onclick="tileInput.getOnlineFile(document.getElementById('link1').value)"><i class="fa-solid fa-globe"></i></button><input id="link1"/>
-            <button class="file-button" onclick="tileInput.getOnlineFile(document.getElementById('link2').value)"><i class="fa-solid fa-globe"></i></button><input id="link2"/>
         </div> 
     </div>
 
@@ -72,18 +70,7 @@
                     loadFileToggle.textContent = '+'; 
                     loadFileToggle.nextElementSibling.classList.add('collapsed');
                 }                
-            }
-            var getOnlineFile = (onlineFileUrl) => { 
-                fetch('https://cors-anywhere.herokuapp.com/' + onlineFileUrl)
-                .then(response => response.text())
-                .then(data => {
-                    alert(data); // Process the data here
-                    tileOutput.load(data);
-                })
-                .catch(error => {
-                    alert('Error fetching data: ' + error);
-                });        
-            }
+            }            
             var openFilePicker = () => {
                 filePicker.click();
             }     
