@@ -10,7 +10,7 @@ mkfs.fat -F 32 /dev/sda1;
 mkfs.ext4 -f /dev/sda2
 mount /dev/sda2 /mnt
 mount /dev/sda1 /mnt/boot
-pacstrap -K /mnt base linux linux-firmware nano
+pacstrap -K /mnt base linux linux-firmware nano xscreensaver
 genfstab -U /mnt >> /mnt/etc/fstab
 arch-chroot /mnt
 ln -sf /usr/share/zoneinfo/US/Eastern /etc/localtime
