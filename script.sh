@@ -10,7 +10,7 @@ mkfs.fat -F 32 /dev/sda1;
 mkfs.ext4 -f /dev/sda2
 mount /dev/sda2 /mnt
 mount /dev/sda1 /mnt/boot
-pacstrap -K /mnt base linux linux-firmware nano networkmanager dialog wpa_supplicant xorg-server qemu-desktop ovmf
+pacstrap -K /mnt base linux linux-firmware nano sudo networkmanager dialog wpa_supplicant xorg-server xorg-xinit qemu-desktop ovmf
 genfstab -U /mnt >> /mnt/etc/fstab
 arch-chroot /mnt
 ln -sf /usr/share/zoneinfo/US/Eastern /etc/localtime
@@ -33,6 +33,24 @@ useradd -m -G wheel hoste
 passwd hoste
 systemctl enable NetworkManager
 bootctl install
+# must also create files and look up the id for root device
+blkid /dev/sda2
+touch /boot/loader/entries/arch.conf
+nano -w /boot/loader/entries/arch.conf
+# write following:
+# title   Arch Linux
+# linux   /vmlinuz-linux
+# initrd  /initramfs-linux.img
+# options root=PARTUUID=<ID from blkid> rw
+
+# also optional but might help:
+# echo ' ' > /boot/loader/loader.conf
+# nano -w /boot/loader/loader.conf
+# default arch
+# timeout 4
+# console-mode max
+# editor no
+# bootctl update
 
 # grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB --removable
 # grub-mkconfig -o /boot/grub/grub.cfg
@@ -42,8 +60,11 @@ echo "Before: #%wheel ALL=(ALL:ALL) ALL"
 echo "After:  %wheel ALL=(ALL:ALL) ALL"
 usermod -aG wheel hoste
 
+# run nmtui after login to set/enable wifi
+
 # things to check
-# windowing systems, zram setup, distrobox and qemu/virt-manager setup, acpi and battery status stuff, networking setup, status of mem use, disk space
+# keep setup for distrobox and qemu/virt-manager in back of mind
+# for battery checking you can use the acpi or upower commands or set watch: watch to run -n0 cat /sys/class/power_supply/BAT0/capacity
 
 while xsetroot -name "$(acpi -b | awk 'NR != 2 {print $4}') | $(free -h | awk '/^Mem/ {print $3}') | $(df -h / | awk '/^\/dev/ {print $3}') | $(uptime | sed 's/.*,//') | $(date '+%m/%d/%Y %H:%M')"
 do
