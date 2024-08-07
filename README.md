@@ -1,4 +1,7 @@
 # hello-world
+Idea board project: https://hostejs.github.io/hello-world/IdeaBoard.html
+
+Experimental v.1 https://hostejs.github.io/hello-world/IdeaBoard-x1.html
 
 here is my first line written
 
