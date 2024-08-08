@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>URL Extractor</title>
+</head>
+<body>
+    <h1>URL Extractor</h1>
+    <textarea id="inputText" rows="10" cols="50"></textarea>
+    <button onclick="extractUrls()">Extract URLs</button>
+    <div id="outputUrls"></div>
+    <textarea id="outputText" rows="10" cols="50"></textarea>
+    <script>
+        function extractUrls() {
+            const inputText = document.getElementById("inputText").value;
+            const urls = inputText.match(/https?:\/\/\S+/g) || [];
+
+            const outputUrls = document.getElementById("outputUrls");
+            outputUrls.innerHTML = "<h2>Extracted URLs:</h2>";
+
+            const currentDate = new Date();
+            // Format the date and time using backticks
+            const formattedDateTime = `${currentDate.toDateString()} ${currentDate.toLocaleTimeString()}`;
+            outputText.value = `- [ ] ${formattedDateTime}\n`;
+            urls.forEach(url => {
+                outputText.value += `  - [ ] ${url}\n`;
+            });
+        }
+    </script>
+</body>
+</html>
