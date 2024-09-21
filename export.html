@@ -6,17 +6,42 @@
 <body>
     <h1>URL Extractor</h1>
     <textarea id="inputText" rows="10" cols="50"></textarea>
+    <button onclick="expand()">Expand output area</button>
+    <button onclick="openAll()">Open All in tabgroup</button>
+    <button onclick="copy()">Copy All Text</button>
     <button onclick="extractUrls()">Extract URLs</button>
+    <button onclick="extractUrlsWithFormat()">Extract URLs with formatting</button>
+    <button onclick="clear()">Clear</button>
     <div id="outputUrls"></div>
     <textarea id="outputText" rows="10" cols="50"></textarea>
     <script>
+        function expand(){
+            outputText.style.width = '100vw';
+            outputText.style.boxSizing = 'border-box';
+        }
+        function copy(){
+            document.getElementById("outputUrls").innerText = outputText.value;
+        }
+        function openAll(){
+            const urls = outputText.value.split('\n');
+            urls.forEach(url => {
+                window.open(url, '_blank');
+            });            
+        }
+        function clear(){
+            document.getElementById("inputText").value = '';
+            document.getElementById("outputText").value = '';
+        }
         function extractUrls() {
-            const inputText = document.getElementById("inputText").value;
-            const urls = inputText.match(/https?:\/\/\S+/g) || [];
-
-            const outputUrls = document.getElementById("outputUrls");
-            outputUrls.innerHTML = "<h2>Extracted URLs:</h2>";
-
+            const urls = document.getElementById("inputText").value.match(/https?:\/\/\S+/g) || [];
+            urls.forEach(url => {
+                outputText.value += `${url}\n`;
+            });
+            document.getElementById("outputUrls").innerText += outputText.value;
+        }
+        function extractUrlsWithFormat() {
+            const urls = document.getElementById("inputText").value.match(/https?:\/\/\S+/g) || [];
+            
             const currentDate = new Date();
             // Format the date and time using backticks
             const formattedDateTime = `${currentDate.toDateString()} ${currentDate.toLocaleTimeString()}`;
@@ -24,6 +49,7 @@
             urls.forEach(url => {
                 outputText.value += `  - [ ] ${url}\n`;
             });
+            document.getElementById("outputUrls").innerText += outputText.value;
         }
     </script>
 </body>
