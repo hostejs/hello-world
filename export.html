@@ -11,16 +11,16 @@
     <button onclick="copy()">Copy All Text</button>
     <button onclick="extractUrls()">Extract URLs</button>
     <button onclick="extractUrlsWithFormat()">Extract URLs with formatting</button>
-    <button onclick="clear()">Clear</button>
-    <div id="outputUrls"></div>
+    <button onclick="reset()">Clear</button>
     <textarea id="outputText" rows="10" cols="50"></textarea>
+    <div id="outputArea"></div>
     <script>
         function expand(){
             outputText.style.width = '100vw';
             outputText.style.boxSizing = 'border-box';
         }
         function copy(){
-            document.getElementById("outputUrls").innerText = outputText.value;
+            document.getElementById("outputArea").innerText = outputText.value;
         }
         function openAll(){
             const urls = outputText.value.split('\n');
@@ -28,16 +28,17 @@
                 window.open(url, '_blank');
             });            
         }
-        function clear(){
+        function reset(){
             document.getElementById("inputText").value = '';
             document.getElementById("outputText").value = '';
+            document.getElementById("outputArea").innerText = '';
         }
         function extractUrls() {
             const urls = document.getElementById("inputText").value.match(/https?:\/\/\S+/g) || [];
             urls.forEach(url => {
                 outputText.value += `${url}\n`;
             });
-            document.getElementById("outputUrls").innerText += outputText.value;
+            document.getElementById("outputArea").innerText += outputText.value;
         }
         function extractUrlsWithFormat() {
             const urls = document.getElementById("inputText").value.match(/https?:\/\/\S+/g) || [];
@@ -49,7 +50,7 @@
             urls.forEach(url => {
                 outputText.value += `  - [ ] ${url}\n`;
             });
-            document.getElementById("outputUrls").innerText += outputText.value;
+            document.getElementById("outputArea").innerText += outputText.value;
         }
     </script>
 </body>
