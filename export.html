@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>URL Extractor</title>
+    <title>Extract Page (url/text)</title>
 </head>
 <body>
-    <h1>URL Extractor</h1>
+    <div id="buttonrow">
+        <button onclick="expand()">Expand output area</button>
+        <button onclick="openAll()">Open All in tabgroup</button>
+        <button onclick="disp()">Display Text</button>
+        <button onclick="extractUrls()">Extract URLs</button>
+        <button onclick="extractUrlsWithFormat()">Extract URLs with formatting</button>
+        <button onclick="reset()">Clear</button>
+    </div>
     <textarea id="inputText" rows="10" cols="50"></textarea>
-    <button onclick="expand()">Expand output area</button>
-    <button onclick="openAll()">Open All in tabgroup</button>
-    <button onclick="copy()">Copy All Text</button>
-    <button onclick="extractUrls()">Extract URLs</button>
-    <button onclick="extractUrlsWithFormat()">Extract URLs with formatting</button>
-    <button onclick="reset()">Clear</button>
     <textarea id="outputText" rows="10" cols="50"></textarea>
     <div id="outputArea"></div>
     <script>
@@ -19,8 +20,10 @@
             outputText.style.width = '100vw';
             outputText.style.boxSizing = 'border-box';
         }
-        function copy(){
+        function disp(){
+            buttonrow.style.display = 'none';
             document.getElementById("outputArea").innerText = outputText.value;
+            outputText.value = '';
         }
         function openAll(){
             const urls = outputText.value.split('\n');
@@ -32,6 +35,7 @@
             document.getElementById("inputText").value = '';
             document.getElementById("outputText").value = '';
             document.getElementById("outputArea").innerText = '';
+            buttonrow.style.display = '';
         }
         function extractUrls() {
             const urls = document.getElementById("inputText").value.match(/https?:\/\/\S+/g) || [];
