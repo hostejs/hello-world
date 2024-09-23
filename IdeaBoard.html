@@ -93,21 +93,13 @@
                 if (lastOpenParenIndex === -1) {
                     // No open parenthesis found
                     var linkMat = inputString.match(/https?:\/\/\S+/g) || [];
-                    console.log(linkMat);
-                    linkMat.forEach(url => {
-                        return isValidUrl(url);
-                    });
-                    return null;
+                    return linkMat ? isValidUrl(linkMat[0]) : null;
                 }
                 const matchingCloseParenIndex = inputString.indexOf(')', lastOpenParenIndex);
                 if (matchingCloseParenIndex === -1) {
                     // No matching closing parenthesis found
                     var linkMat = inputString.match(/https?:\/\/\S+/g) || [];
-                    console.log(linkMat);
-                    linkMat.forEach(url => {
-                        return isValidUrl(url);
-                    });
-                    return null;
+                    return linkMat ? isValidUrl(linkMat[0]) : null;
                 }
                 // Extract the content between the parentheses
                 const extractedContent = inputString.slice(lastOpenParenIndex + 1, matchingCloseParenIndex);
