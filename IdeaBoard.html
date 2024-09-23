@@ -79,7 +79,7 @@
         function TileOutput(){            
             const element = document.getElementById('tileOutputContainer');
             const coords = { holdingX: 0, holdingY: 65};
-            const isValidUrl = urlString=> {
+            const isValidUrl = urlString => {
                 try { 
                     return new URL(urlString); 
                 }
@@ -91,11 +91,19 @@
                 const lastOpenParenIndex = inputString.lastIndexOf('(');
                 if (lastOpenParenIndex === -1) {
                     // No open parenthesis found
+                    var linkMat = inputString.match(/https?:\/\/\S+/g) || [];
+                    linkMat.forEach(url => {
+                        return isValidUrl(url);
+                    });
                     return null;
                 }
                 const matchingCloseParenIndex = inputString.indexOf(')', lastOpenParenIndex);
                 if (matchingCloseParenIndex === -1) {
                     // No matching closing parenthesis found
+                    var linkMat = inputString.match(/https?:\/\/\S+/g) || [];
+                    linkMat.forEach(url => {
+                        return isValidUrl(url);
+                    });
                     return null;
                 }
                 // Extract the content between the parentheses
@@ -150,6 +158,16 @@
                 nextTile.setPosition(coords);
                 var lastTile = getLastTile();
                 if (lastTile.level < nextTile.level) { // next tile's level is greater/deeper than last tile
+                    var btnOpenAll = document.createElement('button');
+                    btnOpenAll.style.float = 'left'; 
+                    btnOpenAll.textContent = '<T>';
+                    btnOpenAll.addEventListener('click', 
+                        (event) => {
+                            const anchors = nextTile.querySelectorAll('a');
+                            console.log('#<a> ' + anchors.length); 
+                        }
+                    );                    
+                    nextTile.appendChild(btnOpenAll);
                     lastTile.element = lastTile.setContent();
                     addLevel(nextTile);
                 }
