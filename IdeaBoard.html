@@ -92,6 +92,7 @@
                 if (lastOpenParenIndex === -1) {
                     // No open parenthesis found
                     var linkMat = inputString.match(/https?:\/\/\S+/g) || [];
+                    console.log(linkMat);
                     linkMat.forEach(url => {
                         return isValidUrl(url);
                     });
@@ -101,6 +102,7 @@
                 if (matchingCloseParenIndex === -1) {
                     // No matching closing parenthesis found
                     var linkMat = inputString.match(/https?:\/\/\S+/g) || [];
+                    console.log(linkMat);
                     linkMat.forEach(url => {
                         return isValidUrl(url);
                     });
