@@ -163,11 +163,11 @@
                     btnOpenAll.textContent = '<T>';
                     btnOpenAll.addEventListener('click', 
                         (event) => {
-                            const anchors = nextTile.querySelectorAll('a');
+                            const anchors = nextTile.element.querySelectorAll('a');
                             console.log('#<a> ' + anchors.length); 
                         }
                     );                    
-                    nextTile.appendChild(btnOpenAll);
+                    nextTile.element.appendChild(btnOpenAll);
                     lastTile.element = lastTile.setContent();
                     addLevel(nextTile);
                 }
