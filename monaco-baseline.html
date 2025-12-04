@@ -1,0 +1,36 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Monaco Smoke Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body { height:100%; margin:0; }
+    #editor { height:100vh; width:100%; }
+  </style>
+  <!-- IMPORTANT: use 'var require = {...}' BEFORE loader.js -->
+  <script>
+    var require = {
+      paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs' }
+    };
+  </script>
+  https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs/loader.js</script>
+</head>
+<body>
+  <div id="editor"></div>
+  <script>
+    // Create Monaco after loader has initialized
+    require(['vs/editor/editor.main'], function () {
+      monaco.editor.create(document.getElementById('editor'), {
+        value: 'If you can see this and type here, Monaco is good.\n\nNext: we’ll add autosave + open/save + OPFS.',
+        language: 'plaintext',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        wordWrap: 'on',
+        minimap: { enabled: false }
+      });
+    });
+  </script>
+</body>
+</html>
