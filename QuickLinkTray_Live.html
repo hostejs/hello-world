@@ -1,0 +1,172 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quick Link Tray — Live</title>
+  <style>
+    :root{
+      --bg:#0f172a; /* slate-900 */
+      --panel:#0b1020; /* dark */
+      --accent:#60a5fa; /* blue-400 */
+      --text:#e5e7eb; /* gray-200 */
+      --muted:#9ca3af; /* gray-400 */
+      --danger:#ef4444; /* red-500 */
+      --border:#1f2937; /* gray-800 */
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, "Noto Sans", sans-serif; background:var(--bg); color:var(--text);}
+    .app{display:flex; flex-direction:column; min-height:100vh;}
+
+    /* Top full-width paste box */
+    header{padding:12px; border-bottom:1px solid var(--border); background:#0d1428}
+    header label{display:block; font-size:13px; color:var(--muted); margin-bottom:6px}
+    #paste{width:100%; min-height:110px; background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px; font-size:14px}
+
+    /* Middle live list */
+    main{flex:1; overflow:auto}
+    .list{padding:8px}
+    .item{display:flex; align-items:flex-start; gap:8px; padding:10px 12px; border-bottom:1px solid var(--border)}
+    .item:hover{background:#0b1d36}
+    .url{flex:1; overflow:hidden}
+    .url a{color:#93c5fd; text-decoration:none; word-break:break-word}
+    .meta{font-size:12px; color:var(--muted)}
+    .right{display:flex; gap:6px; flex-wrap:wrap}
+    button{background:#1f2937; color:var(--text); border:1px solid var(--border); padding:6px 9px; border-radius:8px; cursor:pointer; font-size:12px}
+    button:hover{border-color:#374151}
+    .btn-danger{border-color:var(--danger); color:#fecaca}
+
+    /* Bottom controls */
+    footer{padding:10px; border-top:1px solid var(--border); background:#0d1428}
+    .row{display:flex; gap:8px; flex-wrap:wrap}
+    .grow{flex:1}
+    .muted{color:var(--muted); font-size:12px}
+
+    /* Responsive: Edge sidebar min width is ~376px */
+    @media (max-width:420px){
+      .item{padding:8px}
+      #paste{min-height:90px}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <label for="paste">Paste URLs (one per line):</label>
+    <textarea id="paste" placeholder="https://example.com\nhttps://another.example/path"></textarea>
+    <div class="muted" id="hint">Live list below updates as you type • Stored in localStorage</div>
+  </header>
+
+  <main>
+    <div id="list" class="list"></div>
+  </main>
+
+  <footer>
+    <div class="row">
+      <button id="importBtn">Import JSON</button>
+      <button id="exportBtn">Export JSON</button>
+      <button id="clearAllBtn" class="btn-danger">Clear All</button>
+      <span class="muted" id="count" style="margin-left:auto"></span>
+    </div>
+  </footer>
+</div>
+<script>
+(function(){
+  const KEY = 'quickLinkTray.live.v1';
+  const pasteEl = document.getElementById('paste');
+  const listEl = document.getElementById('list');
+  const countEl = document.getElementById('count');
+  const importBtn = document.getElementById('importBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const clearAllBtn = document.getElementById('clearAllBtn');
+
+  function read(){
+    try{ return JSON.parse(localStorage.getItem(KEY)) || { lines: [] }; }
+    catch(e){ return { lines: [] }; }
+  }
+  function write(state){ localStorage.setItem(KEY, JSON.stringify(state)); }
+
+  function parseLines(text){
+    return text.split(/\n/).map(s=>s.trim()).filter(Boolean);
+  }
+
+  function isUrl(s){
+    try{ const u = new URL(s.trim()); return !!u.protocol && !!u.host; } catch(e){ return false; }
+  }
+
+  function updateFromTextarea(){
+    const lines = parseLines(pasteEl.value);
+    const urls = lines.filter(isUrl);
+    write({ lines: urls });
+    render(urls);
+  }
+
+  function render(urls){
+    const state = read();
+    const items = urls || state.lines || [];
+    countEl.textContent = `${items.length} link(s)`;
+    if(items.length === 0){
+      listEl.innerHTML = `<div class='muted' style='padding:12px;text-align:center'>No links yet. Paste at the top.</div>`;
+      return;
+    }
+    listEl.innerHTML = '';
+    items.forEach((url, idx)=>{
+      const div = document.createElement('div');
+      div.className = 'item';
+      const urlDiv = document.createElement('div'); urlDiv.className = 'url';
+      const a = document.createElement('a'); a.href = url; a.textContent = url; a.target = '_blank';
+      urlDiv.appendChild(a);
+      const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `line ${idx+1}`; urlDiv.appendChild(meta);
+      const right = document.createElement('div'); right.className = 'right';
+      const copyBtn = mkBtn('Copy', ()=> navigator.clipboard.writeText(url));
+      const delBtn = mkBtn('Delete', ()=> removeLine(idx));
+      right.append(copyBtn, delBtn);
+      div.append(urlDiv, right);
+      listEl.appendChild(div);
+    });
+  }
+
+  function mkBtn(text, onclick){ const b = document.createElement('button'); b.textContent = text; b.onclick = onclick; return b; }
+
+  function removeLine(index){
+    const lines = read().lines.slice();
+    lines.splice(index,1);
+    write({ lines });
+    pasteEl.value = lines.join('\n');
+    render(lines);
+  }
+
+  // Import/Export/Clear
+  exportBtn.addEventListener('click', ()=>{
+    const data = JSON.stringify(read(), null, 2);
+    const blob = new Blob([data], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='quick-link-tray-live.json'; a.click(); URL.revokeObjectURL(url);
+  });
+
+  importBtn.addEventListener('click', ()=>{
+    const input = document.createElement('input'); input.type='file'; input.accept='application/json';
+    input.onchange = ()=>{
+      const file = input.files[0]; if(!file) return;
+      const reader = new FileReader(); reader.onload = ()=>{
+        try{ const state = JSON.parse(reader.result); if(state && Array.isArray(state.lines)){ write(state); pasteEl.value = state.lines.join('\n'); render(state.lines); } }
+        catch(e){ alert('Import failed'); }
+      }; reader.readAsText(file);
+    };
+    input.click();
+  });
+
+  clearAllBtn.addEventListener('click', ()=>{
+    if(confirm('Clear all saved links?')){ write({lines:[]}); pasteEl.value=''; render([]); }
+  });
+
+  // Initialize
+  const initial = read();
+  pasteEl.value = (initial.lines||[]).join('\n');
+  render(initial.lines||[]);
+  pasteEl.addEventListener('input', updateFromTextarea);
+})();
+</script>
+</body>
+</html>
