@@ -1,190 +1,326 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<title>Barebones Local-First Editor</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-  body { margin:0; font-family: system-ui; background:#111; color:#eee; }
-  header, footer { padding:8px; background:#1a1a1a; border-bottom:1px solid #333; }
-  footer { border-top:1px solid #333; border-bottom:none; font-size:12px; display:flex; gap:12px; }
-  textarea { width:100%; height:calc(100vh - 120px); background:#0f0f0f; color:#eee; border:none; padding:8px; font-size:16px; resize:none; }
-  button, select, input { background:#2a2a2a; color:#eee; border:1px solid #444; padding:6px 10px; border-radius:6px; margin-right:6px; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Local‑First Textarea Editor</title>
+  <style>
+    :root {
+      --bg: #0f1216;
+      --panel: #171b22;
+      --text: #e6edf3;
+      --muted: #9aa7b0;
+      --accent: #2f81f7;
+      --ok: #3fb950;
+      --stale: #d29922;
+      --err: #f85149;
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    .wrap { height: 100%; display: grid; grid-template-rows: 1fr auto; }
+
+    textarea {
+      width: 100%; height: 100%; border: 0; outline: none; resize: none;
+      background: transparent; color: var(--text);
+      padding: 16px; box-sizing: border-box; font: 16px/1.6 Consolas, Monaco, "SFMono-Regular", Menlo, monospace;
+    }
+
+    /* Condensed bottom bar: one row, fixed height, chips inline, export button */
+    .status-bar {
+      position: sticky; bottom: 0; z-index: 10;
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+      background: var(--panel); border-top: 1px solid #222831;
+    }
+    .spacer { flex: 1; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 8px; border-radius: 999px; font-weight: 600; font-size: 12px;
+      background: #222831; color: var(--muted); border: 1px solid #2a313b;
+    }
+    .chip b { color: var(--text); font-weight: 700; }
+    .chip.ok { border-color: #2a4730; color: var(--ok); }
+    .chip.stale { border-color: #473f2a; color: var(--stale); }
+    .chip.idle { border-color: #2a313b; color: var(--muted); }
+    .chip.err { border-color: #4a2727; color: var(--err); }
+
+    button.export {
+      margin-left: 8px; padding: 6px 12px; border-radius: 6px; border: 1px solid #2a313b;
+      background: #1d232b; color: var(--text); font-weight: 600; cursor: pointer;
+    }
+    button.export:hover { border-color: var(--accent); }
+  </style>
 </head>
 <body>
-<header>
-  <button id="openBtn">Open</button>
-  <button id="saveBtn">Save</button>
-  <button id="saveAsBtn">Save As…</button>
-  <select id="autosaveMode">
-    <option value="on" selected>Autosave ON</option>
-    <option value="off">Autosave OFF</option>
-  </select>
-  <select id="pasteMode">
-    <option value="plain" selected>Plain</option>
-    <option value="html-md">HTML → Markdown</option>
-    <option value="html-raw">Raw HTML</option>
-  </select>
-  <input id="opfsPath" placeholder="OPFS path e.g. notes/today.txt" />
-  <button id="opfsSaveBtn">OPFS Save</button>
-  <button id="opfsOpenBtn">OPFS Open</button>
-</header>
-
-<textarea id="editor" placeholder="Start typing..."></textarea>
-
-<footer>
-  <span id="status">Ready</span>
-</footer>
+  <div class="wrap">
+    <textarea id="buffer" placeholder="Start typing…" spellcheck="false"></textarea>
+    <div class="status-bar">
+      <span class="chip idle" id="chip-idb"><b>IndexedDB</b><span class="state">Idle</span></span>
+      <span class="chip idle" id="chip-bkp"><b>Backup</b><span class="state">Idle</span></span>
+      <span class="chip idle" id="chip-opfs"><b>OPFS</b><span class="state">Idle</span></span>
+      <span class="chip idle" id="chip-sess"><b>Session</b><span class="state">Idle</span></span>
+      <span class="spacer"></span>
+      <button class="export" id="btn-export" title="Export via File System Access">Export…</button>
+    </div>
+  </div>
 
 <script>
-let fileHandle = null;
-let autosave = true;
-let autosaveTimer;
-const editor = document.getElementById('editor');
-const statusEl = document.getElementById('status');
-const pasteModeEl = document.getElementById('pasteMode');
-const opfsPathEl = document.getElementById('opfsPath');
+(() => {
+  // ---- Config ----
+  const AUTOSAVE_IDLE_MS = 1500;    // IndexedDB buffer autosave after inactivity
+  const BACKUP_INTERVAL_MS = 5000;  // Rolling backup regardless of activity
+  const OPFS_INTERVAL_MS = 15000;   // Mirror to OPFS periodically
+  const STALE_THRESHOLD_MS = 15000; // Chip shows Stale if behind last edit by > 15s
+  const OPFS_FILENAME = 'draft.txt';
 
-// IndexedDB helpers
-function idbOpen() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('BarebonesEditorDB', 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore('drafts', { keyPath: 'id' });
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-async function idbPut(db, text) {
-  const tx = db.transaction('drafts', 'readwrite');
-  tx.objectStore('drafts').put({ id: 'main', text, ts: Date.now() });
-}
-async function idbGet(db) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('drafts', 'readonly');
-    const req = tx.objectStore('drafts').get('main');
-    req.onsuccess = () => resolve(req.result?.text || '');
-    req.onerror = () => reject(req.error);
-  });
-}
+  // ---- Elements ----
+  const ta = document.getElementById('buffer');
+  const chipIDB = document.getElementById('chip-idb');
+  const chipBKP = document.getElementById('chip-bkp');
+  const chipOPFS = document.getElementById('chip-opfs');
+  const chipSESS = document.getElementById('chip-sess');
+  const btnExport = document.getElementById('btn-export');
 
-// HTML → Markdown
-function htmlToMarkdown(html) {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  function walk(node) {
-    if (node.nodeType === Node.TEXT_NODE) return node.nodeValue.replace(/\s+/g, ' ');
-    if (node.nodeType !== Node.ELEMENT_NODE) return '';
-    const name = node.tagName.toLowerCase();
-    const inner = Array.from(node.childNodes).map(walk).join('');
-    switch (name) {
-      case 'b': case 'strong': return `**${inner}**`;
-      case 'i': case 'em': return `*${inner}*`;
-      case 'u': return `_${inner}_`;
-      case 'br': return '\n';
-      case 'p': return inner.trim() ? inner.trim() + '\n\n' : '\n\n';
-      case 'h1': return `# ${inner}\n\n`;
-      case 'h2': return `## ${inner}\n\n`;
-      case 'h3': return `### ${inner}\n\n`;
-      default: return inner;
+  // ---- Status helpers ----
+  function setChip(chip, state) {
+    chip.classList.remove('ok','stale','idle','err');
+    const el = chip.querySelector('.state');
+    switch(state) {
+      case 'Saved': chip.classList.add('ok'); el.textContent = 'Saved'; break;
+      case 'Stale': chip.classList.add('stale'); el.textContent = 'Stale'; break;
+      case 'Idle': chip.classList.add('idle'); el.textContent = 'Idle'; break;
+      case 'Error': chip.classList.add('err'); el.textContent = 'Error'; break;
+      case 'Unsupported': chip.classList.add('err'); el.textContent = 'Unsupported'; break;
+      default: chip.classList.add('idle'); el.textContent = state || 'Idle';
     }
   }
-  return walk(doc.body).trim();
-}
+  function markFreshness(chip, lastSavedTs, lastEditTs) {
+    if (!lastSavedTs) return setChip(chip, 'Idle');
+    const behind = (lastEditTs ?? 0) - lastSavedTs;
+    if (behind > STALE_THRESHOLD_MS) setChip(chip, 'Stale'); else setChip(chip, 'Saved');
+  }
 
-// Boot
-(async () => {
-  const db = await idbOpen();
-  editor.value = await idbGet(db);
-  editor.addEventListener('input', () => {
-    if (!autosave) return;
-    clearTimeout(autosaveTimer);
-    autosaveTimer = setTimeout(() => idbPut(db, editor.value), 500);
+  // ---- Clocks ----
+  let lastEditAt = 0;
+  function now() { return Date.now(); }
+
+  // ---- SessionStorage mirror ----
+  let sessSavedAt = 0;
+  function sessSave(text) {
+    try {
+      sessionStorage.setItem('draft.session', text);
+      sessSavedAt = now();
+      markFreshness(chipSESS, sessSavedAt, lastEditAt);
+    } catch (e) {
+      setChip(chipSESS, 'Error');
+      console.error('Session save error', e);
+    }
+  }
+  function sessLoad() {
+    try { return sessionStorage.getItem('draft.session') ?? ''; } catch { return ''; }
+  }
+
+  // ---- IndexedDB (primary) ----
+  let idb, idbSavedAt = 0, bkpSavedAt = 0;
+  const DB_NAME = 'local-first-editor';
+  const STORE_BUFFER = 'drafts.buffer';
+  const STORE_BACKUP = 'drafts.backup';
+
+  function idbOpen() {
+    return new Promise((resolve, reject) => {
+      if (idb) return resolve(idb);
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE_BUFFER)) db.createObjectStore(STORE_BUFFER);
+        if (!db.objectStoreNames.contains(STORE_BACKUP)) db.createObjectStore(STORE_BACKUP);
+      };
+      req.onsuccess = () => { idb = req.result; resolve(idb); };
+      req.onerror = () => { reject(req.error); };
+    });
+  }
+  function idbPut(store, value) {
+    return idbOpen().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction([store], 'readwrite');
+      const st = tx.objectStore(store);
+      const req = st.put(value, 'singleton');
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    }));
+  }
+  function idbGet(store) {
+    return idbOpen().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction([store], 'readonly');
+      const st = tx.objectStore(store);
+      const req = st.get('singleton');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }));
+  }
+
+  // Autosave after inactivity
+  let autosaveTimer = null;
+  async function autosave() {
+    try {
+      await idbPut(STORE_BUFFER, { text: ta.value, ts: now() });
+      idbSavedAt = now();
+      markFreshness(chipIDB, idbSavedAt, lastEditAt);
+    } catch (e) {
+      console.error('IDB autosave error', e);
+      setChip(chipIDB, 'Error');
+    }
+  }
+
+  // Rolling backup every 5s regardless
+  async function backupSave() {
+    try {
+      await idbPut(STORE_BACKUP, { text: ta.value, ts: now() });
+      bkpSavedAt = now();
+      markFreshness(chipBKP, bkpSavedAt, lastEditAt);
+    } catch (e) {
+      console.error('IDB backup error', e);
+      setChip(chipBKP, 'Error');
+    }
+  }
+
+  // ---- OPFS mirror (secondary) ----
+  let rootHandle = null, opfsSavedAt = 0;
+  async function opfsInit() {
+    try {
+      if (!navigator.storage || !navigator.storage.getDirectory) {
+        setChip(chipOPFS, 'Unsupported');
+        return null;
+      }
+      rootHandle = await navigator.storage.getDirectory();
+      // Touch file to ensure it exists
+      await rootHandle.getFileHandle(OPFS_FILENAME, { create: true });
+      return rootHandle;
+    } catch (e) {
+      console.error('OPFS init error', e);
+      setChip(chipOPFS, 'Error');
+      return null;
+    }
+  }
+  async function opfsWrite() {
+    try {
+      if (!rootHandle) return;
+      const fh = await rootHandle.getFileHandle(OPFS_FILENAME, { create: true });
+      const w = await fh.createWritable();
+      await w.write(ta.value);
+      await w.close(); // atomic replacement
+      opfsSavedAt = now();
+      markFreshness(chipOPFS, opfsSavedAt, lastEditAt);
+    } catch (e) {
+      console.error('OPFS write error', e);
+      setChip(chipOPFS, 'Error');
+    }
+  }
+  async function opfsRead() {
+    try {
+      if (!rootHandle) return { text: '', ts: 0 };
+      const fh = await rootHandle.getFileHandle(OPFS_FILENAME, { create: true });
+      const f = await fh.getFile();
+      const text = await f.text();
+      return { text, ts: f.lastModified || 0 };
+    } catch (e) {
+      console.error('OPFS read error', e);
+      return { text: '', ts: 0 };
+    }
+  }
+
+  // ---- Restore logic ----
+  async function restoreFreshest() {
+    const sess = sessLoad();
+    const sessTs = sess ? now() : 0; // session has no timestamp; treat as current if present
+
+    let buf = await idbGet(STORE_BUFFER).catch(() => null);
+    let bkp = await idbGet(STORE_BACKUP).catch(() => null);
+    if (!buf) buf = { text: '', ts: 0 };
+    if (!bkp) bkp = { text: '', ts: 0 };
+
+    const opfs = await opfsRead();
+
+    const candidates = [
+      { src: 'idb', text: buf.text || '', ts: buf.ts || 0 },
+      { src: 'bkp', text: bkp.text || '', ts: bkp.ts || 0 },
+      { src: 'opfs', text: opfs.text || '', ts: opfs.ts || 0 },
+      { src: 'sess', text: sess || '', ts: sessTs }
+    ];
+    candidates.sort((a,b) => b.ts - a.ts);
+    const best = candidates[0];
+
+    ta.value = best.text || '';
+    lastEditAt = now(); // start fresh reference point
+
+    // Update chips from loaded timestamps
+    idbSavedAt = buf.ts || 0; markFreshness(chipIDB, idbSavedAt, lastEditAt);
+    bkpSavedAt = bkp.ts || 0; markFreshness(chipBKP, bkpSavedAt, lastEditAt);
+    opfsSavedAt = opfs.ts || 0; markFreshness(chipOPFS, opfsSavedAt, lastEditAt);
+    sessSavedAt = sessTs || 0; markFreshness(chipSESS, sessSavedAt, lastEditAt);
+  }
+
+  // ---- Export (File System Access API) ----
+  async function doExport() {
+    if (!window.showSaveFilePicker) {
+      alert('Export is unsupported in this browser.');
+      return;
+    }
+    try {
+      const handle = await showSaveFilePicker({
+        suggestedName: 'draft.txt',
+        types: [{ description: 'Text', accept: { 'text/plain': ['.txt'] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(ta.value);
+      await writable.close();
+    } catch (e) {
+      if (e && e.name === 'AbortError') return; // user cancelled
+      console.error('Export error', e);
+      alert('Export failed. Check console for details.');
+    }
+  }
+
+  // ---- Event wiring ----
+  ta.addEventListener('input', () => {
+    lastEditAt = now();
+    sessSave(ta.value);
+    // Debounced autosave
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(autosave, AUTOSAVE_IDLE_MS);
   });
-  document.getElementById('autosaveMode').addEventListener('change', e => autosave = e.target.value === 'on');
+
+  // Rolling backup clock
+  setInterval(backupSave, BACKUP_INTERVAL_MS);
+  // OPFS mirror clock
+  setInterval(opfsWrite, OPFS_INTERVAL_MS);
+
+  // Save on hide/close
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      // Best-effort synchronous calls
+      sessSave(ta.value);
+      autosave();
+      backupSave();
+      opfsWrite();
+    }
+  });
+  window.addEventListener('beforeunload', () => {
+    sessSave(ta.value);
+  });
+
+  btnExport.addEventListener('click', doExport);
+
+  // ---- Boot ----
+  (async () => {
+    await idbOpen().catch(e => { console.error('IDB open failed', e); setChip(chipIDB, 'Error'); setChip(chipBKP, 'Error'); });
+    await opfsInit();
+    await restoreFreshest();
+  })();
 })();
-
-// Paste handling
-editor.addEventListener('paste', e => {
-  const mode = pasteModeEl.value;
-  const plain = e.clipboardData?.getData('text/plain') || '';
-  const html = e.clipboardData?.getData('text/html') || '';
-  let insertText = plain;
-  if (mode === 'html-raw' && html) insertText = html;
-  if (mode === 'html-md' && html) insertText = htmlToMarkdown(html);
-  if (insertText) {
-    e.preventDefault();
-    const start = editor.selectionStart, end = editor.selectionEnd;
-    editor.setRangeText(insertText, start, end, 'end');
-  }
-});
-
-// File System Access
-async function openFile() {
-  try {
-    const [handle] = await window.showOpenFilePicker({ types: [{ description: 'Text', accept: { 'text/plain': ['.txt', '.md'] } }] });
-    fileHandle = handle;
-    const file = await fileHandle.getFile();
-    editor.value = await file.text();
-    statusEl.textContent = 'Opened: ' + file.name;
-  } catch {}
-}
-async function saveFile() {
-  try {
-    if (!fileHandle) return saveFileAs();
-    const writable = await fileHandle.createWritable();
-    await writable.write(editor.value);
-    await writable.close();
-    statusEl.textContent = 'Saved';
-  } catch {}
-}
-async function saveFileAs() {
-  try {
-    fileHandle = await window.showSaveFilePicker({ suggestedName: 'untitled.txt', types: [{ description: 'Text', accept: { 'text/plain': ['.txt', '.md'] } }] });
-    await saveFile();
-  } catch {}
-}
-document.getElementById('openBtn').addEventListener('click', openFile);
-document.getElementById('saveBtn').addEventListener('click', saveFile);
-document.getElementById('saveAsBtn').addEventListener('click', saveFileAs);
-
-// OPFS
-async function opfsWrite(path, contents) {
-  const root = await navigator.storage.getDirectory();
-  const parts = path.split('/').filter(Boolean);
-  let dir = root;
-  for (let i = 0; i < parts.length - 1; i++) dir = await dir.getDirectoryHandle(parts[i], { create: true });
-  const fileName = parts[parts.length - 1];
-  const file = await dir.getFileHandle(fileName, { create: true });
-  const writable = await file.createWritable();
-  await writable.write(contents);
-  await writable.close();
-}
-async function opfsRead(path) {
-  const root = await navigator.storage.getDirectory();
-  const parts = path.split('/').filter(Boolean);
-  let dir = root;
-  for (let i = 0; i < parts.length - 1; i++) dir = await dir.getDirectoryHandle(parts[i]);
-  const fileName = parts[parts.length - 1];
-  const file = await dir.getFileHandle(fileName);
-  const blob = await file.getFile();
-  return await blob.text();
-}
-document.getElementById('opfsSaveBtn').addEventListener('click', async () => {
-  const path = opfsPathEl.value.trim();
-  if (!path) return;
-  await opfsWrite(path, editor.value);
-  statusEl.textContent = 'OPFS saved → ' + path;
-});
-document.getElementById('opfsOpenBtn').addEventListener('click', async () => {
-  const path = opfsPathEl.value.trim();
-  if (!path) return;
-  try {
-    editor.value = await opfsRead(path);
-    statusEl.textContent = 'OPFS opened ← ' + path;
-  } catch (e) {
-    statusEl.textContent = 'OPFS open failed';
-  }
-});
 </script>
 </body>
 </html>
