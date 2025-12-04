@@ -1,386 +1,190 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Local‑First Text (GitHub Pages)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Monaco CSS from your own origin -->
-  ./vs/editor/editor.main.css
-  <style>
-    :root { --chrome:#1a1a1a; --bg:#111; --fg:#eee; --border:#333; --btn:#2a2a2a; }
-    html, body { height:100%; }
-    body { margin:0; font-family: system-ui, Segoe UI, Arial; background:var(--bg); color:var(--fg); }
-    header, footer { padding:8px 12px; background:var(--chrome); border-bottom:1px solid var(--border); }
-    footer { border-top:1px solid var(--border); border-bottom:none; font-size:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-    .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    button, select, input[type="text"], label { background:var(--btn); color:var(--fg); border:1px solid #444; padding:6px 10px; border-radius:6px; cursor:pointer; }
-    input[type="text"] { min-width: 220px; }
-    button:hover, select:hover { background:#333; }
-    #main { height: calc(100vh - 160px); }
-    #editor { height: 100%; width: 100%; position: relative; }
-    #fallback { display:none; height:100%; width:100%; box-sizing:border-box; background:#0f0f0f; color:#eee; border:1px solid #444; padding:8px; }
-    .status { margin-left:auto; opacity:0.8; }
-    .group { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-  </style>
-
-  <!-- AMD config: must use 'var require = {...}' BEFORE loader.js -->
-  <script> var require = { paths: { 'vs': './vs' } }; </script>
-  <scriptader.js</script>
-
-  <!-- (Optional) Tell Monaco its baseUrl (same-origin). Not strictly required, but harmless. -->
-  <script> window.MonacoEnvironment = { baseUrl: './vs' }; </script>
+<meta charset="utf-8" />
+<title>Barebones Local-First Editor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  body { margin:0; font-family: system-ui; background:#111; color:#eee; }
+  header, footer { padding:8px; background:#1a1a1a; border-bottom:1px solid #333; }
+  footer { border-top:1px solid #333; border-bottom:none; font-size:12px; display:flex; gap:12px; }
+  textarea { width:100%; height:calc(100vh - 120px); background:#0f0f0f; color:#eee; border:none; padding:8px; font-size:16px; resize:none; }
+  button, select, input { background:#2a2a2a; color:#eee; border:1px solid #444; padding:6px 10px; border-radius:6px; margin-right:6px; }
+</style>
 </head>
 <body>
-  <header>
-    <div class="toolbar">
-      <div class="group">
-        <button id="openBtn">Open</button>
-        <button id="saveBtn">Save</button>
-        <button id="saveAsBtn">Save As…</button>
-      </div>
+<header>
+  <button id="openBtn">Open</button>
+  <button id="saveBtn">Save</button>
+  <button id="saveAsBtn">Save As…</button>
+  <select id="autosaveMode">
+    <option value="on" selected>Autosave ON</option>
+    <option value="off">Autosave OFF</option>
+  </select>
+  <select id="pasteMode">
+    <option value="plain" selected>Plain</option>
+    <option value="html-md">HTML → Markdown</option>
+    <option value="html-raw">Raw HTML</option>
+  </select>
+  <input id="opfsPath" placeholder="OPFS path e.g. notes/today.txt" />
+  <button id="opfsSaveBtn">OPFS Save</button>
+  <button id="opfsOpenBtn">OPFS Open</button>
+</header>
 
-      <label>
-        Autosave
-        <select id="autosaveMode">
-          <option value="on" selected>On (500ms)</option>
-          <option value="off">Off</option>
-        </select>
-      </label>
+<textarea id="editor" placeholder="Start typing..."></textarea>
 
-      <label>
-        Paste
-        <select id="pasteMode">
-          <option value="plain" selected>Plain</option>
-          <option value="html-md">HTML → Markdown</option>
-          <option value="html-raw">Raw HTML (text)</option>
-        </select>
-      </label>
+<footer>
+  <span id="status">Ready</span>
+</footer>
 
-      <div class="group">
-        <input id="opfsPath" type="text" placeholder="OPFS path e.g. notes/today.md" />
-        <button id="opfsSaveBtn">Save to OPFS</button>
-        <button id="opfsOpenBtn">Open from OPFS</button>
-        <button id="opfsListBtn" title="List root entries">List OPFS</button>
-      </div>
+<script>
+let fileHandle = null;
+let autosave = true;
+let autosaveTimer;
+const editor = document.getElementById('editor');
+const statusEl = document.getElementById('status');
+const pasteModeEl = document.getElementById('pasteMode');
+const opfsPathEl = document.getElementById('opfsPath');
 
-      <span class="status" id="status">Ready</span>
-    </div>
-  </header>
+// IndexedDB helpers
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('BarebonesEditorDB', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('drafts', { keyPath: 'id' });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbPut(db, text) {
+  const tx = db.transaction('drafts', 'readwrite');
+  tx.objectStore('drafts').put({ id: 'main', text, ts: Date.now() });
+}
+async function idbGet(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('drafts', 'readonly');
+    const req = tx.objectStore('drafts').get('main');
+    req.onsuccess = () => resolve(req.result?.text || '');
+    req.onerror = () => reject(req.error);
+  });
+}
 
-  <div id="main">
-    <div id="editor"></div>
-    <textarea id="fallback" placeholder="Monaco failed to load; using plain textarea."></textarea>
-  </div>
-
-  <footer>
-    <span id="fileStatus">No file</span>
-    <span id="opfsStatus">OPFS: —</span>
-    <span class="status" id="quotaStatus">Storage: —</span>
-  </footer>
-
-  <script>
-    let editor, dbHandle, fileHandle = null, autosave = true, autosaveTimer;
-    const DB_NAME = 'LocalFirstEditorDB', STORE_NAME = 'drafts', DRAFT_ID = 'main-text';
-    const statusEl = document.getElementById('status');
-    const fileStatusEl = document.getElementById('fileStatus');
-    const opfsStatusEl = document.getElementById('opfsStatus');
-    const quotaStatusEl = document.getElementById('quotaStatus');
-    const pasteModeEl = document.getElementById('pasteMode');
-    const opfsPathEl = document.getElementById('opfsPath');
-    const editorContainer = document.getElementById('editor');
-    const fallbackEl = document.getElementById('fallback');
-
-    /* ---------- IndexedDB helpers ---------- */
-    function idbOpen(dbName, storeName) {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open(dbName, 1);
-        req.onupgradeneeded = (e) => {
-          const db = e.target.result;
-          if (!db.objectStoreNames.contains(storeName)) {
-            db.createObjectStore(storeName, { keyPath: 'id' });
-          }
-        };
-        req.onsuccess = () => resolve({ db: req.result, storeName });
-        req.onerror = () => reject(req.error);
-      });
+// HTML → Markdown
+function htmlToMarkdown(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  function walk(node) {
+    if (node.nodeType === Node.TEXT_NODE) return node.nodeValue.replace(/\s+/g, ' ');
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    const name = node.tagName.toLowerCase();
+    const inner = Array.from(node.childNodes).map(walk).join('');
+    switch (name) {
+      case 'b': case 'strong': return `**${inner}**`;
+      case 'i': case 'em': return `*${inner}*`;
+      case 'u': return `_${inner}_`;
+      case 'br': return '\n';
+      case 'p': return inner.trim() ? inner.trim() + '\n\n' : '\n\n';
+      case 'h1': return `# ${inner}\n\n`;
+      case 'h2': return `## ${inner}\n\n`;
+      case 'h3': return `### ${inner}\n\n`;
+      default: return inner;
     }
-    function idbPut(handle, record) {
-      return new Promise((resolve, reject) => {
-        const tx = handle.db.transaction(handle.storeName, 'readwrite');
-        const store = tx.objectStore(handle.storeName);
-        const req = store.put(record);
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-      });
-    }
-    function idbGet(handle, id) {
-      return new Promise((resolve, reject) => {
-        const tx = handle.db.transaction(handle.storeName, 'readonly');
-        const store = tx.objectStore(handle.storeName);
-        const req = store.get(id);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    }
+  }
+  return walk(doc.body).trim();
+}
 
-    /* ---------- HTML → Markdown (minimal) ---------- */
-    function htmlToMarkdown(html) {
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      function walk(node) {
-        if (node.nodeType === Node.TEXT_NODE) return node.nodeValue.replace(/\s+/g, ' ');
-        if (node.nodeType !== Node.ELEMENT_NODE) return '';
-        const name = node.tagName.toLowerCase();
-        const inner = Array.from(node.childNodes).map(walk).join('');
-        switch (name) {
-          case 'b': case 'strong': return `**${inner}**`;
-          case 'i': case 'em':     return `*${inner}*`;
-          case 'u':                return `_${inner}_`;
-          case 'br':               return '\n';
-          case 'p':                return inner.trim() ? inner.trim() + '\n\n' : '\n\n';
-          case 'h1': return `# ${inner}\n\n`;
-          case 'h2': return `## ${inner}\n\n`;
-          case 'h3': return `### ${inner}\n\n`;
-          case 'a':  { const href = node.getAttribute('href') || ''; return href ? `${inner}` : inner; }
-          case 'ul': return Array.from(node.children).map(li => `- ${walk(li).trim()}\n`).join('') + '\n';
-          case 'ol': { let i = 1; return Array.from(node.children).map(li => `${i++}. ${walk(li).trim()}\n`).join('') + '\n'; }
-          case 'code': return '`' + inner + '`';
-          case 'pre':  return '```\n' + inner + '\n```\n';
-          default: return inner;
-        }
-      }
-      return walk(doc.body).trim();
-    }
+// Boot
+(async () => {
+  const db = await idbOpen();
+  editor.value = await idbGet(db);
+  editor.addEventListener('input', () => {
+    if (!autosave) return;
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => idbPut(db, editor.value), 500);
+  });
+  document.getElementById('autosaveMode').addEventListener('change', e => autosave = e.target.value === 'on');
+})();
 
-    /* ---------- Status helpers ---------- */
-    const setStatus = (msg) => statusEl.textContent = msg;
-    const setFileStatus = (msg) => fileStatusEl.textContent = msg;
-    const setOpfsStatus = (msg) => opfsStatusEl.textContent = 'OPFS: ' + msg;
-    const setQuotaStatus = (msg) => quotaStatusEl.textContent = 'Storage: ' + msg;
+// Paste handling
+editor.addEventListener('paste', e => {
+  const mode = pasteModeEl.value;
+  const plain = e.clipboardData?.getData('text/plain') || '';
+  const html = e.clipboardData?.getData('text/html') || '';
+  let insertText = plain;
+  if (mode === 'html-raw' && html) insertText = html;
+  if (mode === 'html-md' && html) insertText = htmlToMarkdown(html);
+  if (insertText) {
+    e.preventDefault();
+    const start = editor.selectionStart, end = editor.selectionEnd;
+    editor.setRangeText(insertText, start, end, 'end');
+  }
+});
 
-    /* ---------- Fallback if Monaco fails ---------- */
-    function bootFallback(text='') {
-      fallbackEl.style.display = 'block';
-      editorContainer.style.display = 'none';
-      fallbackEl.value = text;
-      setStatus('Fallback textarea active');
-      fallbackEl.addEventListener('input', () => {
-        if (!autosave) return;
-        clearTimeout(autosaveTimer);
-        autosaveTimer = setTimeout(async () => {
-          await idbPut(dbHandle, { id: DRAFT_ID, text: fallbackEl.value, ts: Date.now() });
-          setStatus('Saved locally (fallback) · ' + new Date().toLocaleTimeString());
-        }, 500);
-      });
-    }
+// File System Access
+async function openFile() {
+  try {
+    const [handle] = await window.showOpenFilePicker({ types: [{ description: 'Text', accept: { 'text/plain': ['.txt', '.md'] } }] });
+    fileHandle = handle;
+    const file = await fileHandle.getFile();
+    editor.value = await file.text();
+    statusEl.textContent = 'Opened: ' + file.name;
+  } catch {}
+}
+async function saveFile() {
+  try {
+    if (!fileHandle) return saveFileAs();
+    const writable = await fileHandle.createWritable();
+    await writable.write(editor.value);
+    await writable.close();
+    statusEl.textContent = 'Saved';
+  } catch {}
+}
+async function saveFileAs() {
+  try {
+    fileHandle = await window.showSaveFilePicker({ suggestedName: 'untitled.txt', types: [{ description: 'Text', accept: { 'text/plain': ['.txt', '.md'] } }] });
+    await saveFile();
+  } catch {}
+}
+document.getElementById('openBtn').addEventListener('click', openFile);
+document.getElementById('saveBtn').addEventListener('click', saveFile);
+document.getElementById('saveAsBtn').addEventListener('click', saveFileAs);
 
-    /* ---------- Boot Monaco ---------- */
-    require(['vs/editor/editor.main'], async function () {
-      try {
-        if (editorContainer.getBoundingClientRect().height < 50) {
-          editorContainer.style.height = '60vh';
-        }
-        dbHandle = await idbOpen(DB_NAME, STORE_NAME);
-        const rec = await idbGet(dbHandle, DRAFT_ID);
-        const initialText = rec?.text || '';
-
-        editor = monaco.editor.create(editorContainer, {
-          value: initialText || 'Hello from Monaco (GitHub Pages)!\nType here…',
-          language: 'plaintext',
-          theme: 'vs-dark',
-          automaticLayout: true,
-          wordWrap: 'on',
-          minimap: { enabled: false }
-        });
-        setStatus(initialText ? 'Recovered draft from IndexedDB' : 'Ready');
-
-        // Debounced autosave
-        editor.onDidChangeModelContent(() => {
-          if (!autosave) return;
-          clearTimeout(autosaveTimer);
-          autosaveTimer = setTimeout(async () => {
-            await idbPut(dbHandle, { id: DRAFT_ID, text: editor.getValue(), ts: Date.now() });
-            setStatus('Saved locally · ' + new Date().toLocaleTimeString());
-          }, 500);
-        });
-
-        // Save on hide/close
-        document.addEventListener('visibilitychange', async () => {
-          if (document.visibilityState === 'hidden') {
-            await idbPut(dbHandle, { id: DRAFT_ID, text: editor.getValue(), ts: Date.now() });
-            setStatus('Saved locally (tab hidden)');
-          }
-        });
-
-        // Paste interception
-        const container = editor.getContainerDomNode();
-        container.addEventListener('paste', (e) => {
-          const mode = pasteModeEl.value;
-          const plain = e.clipboardData?.getData('text/plain') ?? '';
-          const html  = e.clipboardData?.getData('text/html') ?? '';
-          let insertText = plain;
-          if (mode === 'html-raw' && html) insertText = html;
-          if (mode === 'html-md'  && html) insertText = htmlToMarkdown(html);
-          if (insertText) {
-            e.preventDefault();
-            const sel = editor.getSelection();
-            editor.executeEdits('paste', [{ range: sel, text: insertText, forceMoveMarkers: true }]);
-            editor.revealLine(editor.getPosition().lineNumber);
-            setStatus(`Pasted (${mode})`);
-          }
-        });
-
-        // Post-paste correction
-        editor.onDidPaste((evt) => {
-          const mode = pasteModeEl.value;
-          if (mode === 'plain') return;
-          try {
-            const range = evt.range;
-            const pasted = editor.getModel().getValueInRange(range);
-            let replacement = pasted;
-            if (mode === 'html-raw') {
-              const html = evt.clipboardEvent?.clipboardData?.getData('text/html');
-              if (html) replacement = html;
-            } else if (mode === 'html-md') {
-              const html = evt.clipboardEvent?.clipboardData?.getData('text/html');
-              if (html) replacement = htmlToMarkdown(html);
-            }
-            if (replacement !== pasted) {
-              editor.executeEdits('paste-fix', [{ range, text: replacement, forceMoveMarkers: true }]);
-              setStatus(`Adjusted paste → ${mode}`);
-            }
-          } catch {}
-        });
-
-        // Controls
-        document.getElementById('autosaveMode').addEventListener('change', (e) => {
-          autosave = (e.target.value === 'on');
-          setStatus(`Autosave ${autosave ? 'ON' : 'OFF'}`);
-        });
-        document.getElementById('openBtn').addEventListener('click', openFile);
-        document.getElementById('saveBtn').addEventListener('click', saveFile);
-        document.getElementById('saveAsBtn').addEventListener('click', saveFileAs);
-        document.getElementById('opfsSaveBtn').addEventListener('click', async () => {
-          const path = opfsPathEl.value.trim();
-          if (!path) return setOpfsStatus('enter a path');
-          await opfsWrite(path, editor.getValue());
-          setOpfsStatus('saved → ' + path);
-        });
-        document.getElementById('opfsOpenBtn').addEventListener('click', async () => {
-          const path = opfsPathEl.value.trim();
-          if (!path) return setOpfsStatus('enter a path');
-          try {
-            const text = await opfsRead(path);
-            editor.setValue(text);
-            setOpfsStatus('opened ← ' + path);
-          } catch (e) {
-            setOpfsStatus('open failed: ' + e.message);
-          }
-        });
-        document.getElementById('opfsListBtn').addEventListener('click', async () => {
-          const list = await opfsList('');
-          setOpfsStatus('root: ' + (list.length ? list.join(', ') : '(empty)'));
-        });
-
-        // Storage estimate
-        if (navigator.storage?.estimate) {
-          try {
-            const est = await navigator.storage.estimate();
-            const usedMB = (est.usage || 0) / (1024 * 1024);
-            const quotaMB = (est.quota || 0) / (1024 * 1024);
-            setQuotaStatus(`${usedMB.toFixed(1)} MB used / ${quotaMB.toFixed(1)} MB quota`);
-          } catch {}
-        }
-      } catch (err) {
-        console.error('Monaco failed, enabling fallback:', err);
-        try {
-          dbHandle = await idbOpen(DB_NAME, STORE_NAME);
-          const rec = await idbGet(dbHandle, DRAFT_ID);
-          bootFallback(rec?.text || '');
-        } catch {
-          bootFallback('');
-        }
-      }
-    });
-
-    /* ---------- File System Access (Edge/Chromium) ---------- */
-    async function openFile() {
-      try {
-        const [handle] = await window.showOpenFilePicker({
-          types: [{ description: 'Text', accept: { 'text/plain': ['.txt', '.md'] } }],
-          excludeAcceptAllOption: false, multiple: false
-        });
-        fileHandle = handle;
-        const file = await fileHandle.getFile();
-        const text = await file.text();
-        if (editor) editor.setValue(text); else fallbackEl.value = text;
-        setFileStatus('Opened: ' + file.name);
-        setStatus('Loaded from disk');
-      } catch (e) {
-        if (e.name !== 'AbortError') setStatus('Open failed: ' + e.message);
-      }
-    }
-    async function saveFile() {
-      try {
-        if (!fileHandle) return saveFileAs();
-        const writable = await fileHandle.createWritable();
-        await writable.write(editor ? editor.getValue() : fallbackEl.value);
-        await writable.close();
-        setStatus('Saved to disk · ' + new Date().toLocaleTimeString());
-      } catch (e) { setStatus('Save failed: ' + e.message); }
-    }
-    async function saveFileAs() {
-      try {
-        fileHandle = await window.showSaveFilePicker({
-          suggestedName: 'untitled.txt',
-          types: [{ description: 'Text', accept: { 'text/plain': ['.txt', '.md'] } }]
-        });
-        await saveFile();
-        const file = await fileHandle.getFile();
-        setFileStatus('File: ' + file.name);
-      } catch (e) {
-        if (e.name !== 'AbortError') setStatus('Save As failed: ' + e.message);
-      }
-    }
-
-    /* ---------- OPFS (Origin Private File System) ---------- */
-    async function opfsWrite(path, contents) {
-      const root = await navigator.storage.getDirectory();
-      const parts = path.split('/').filter(Boolean);
-      let dir = root;
-      for (let i = 0; i < parts.length - 1; i++) {
-        dir = await dir.getDirectoryHandle(parts[i], { create: true });
-      }
-      const fileName = parts[parts.length - 1];
-      const file = await dir.getFileHandle(fileName, { create: true });
-      const writable = await file.createWritable();
-      await writable.write(contents);
-      await writable.close();
-    }
-    async function opfsRead(path) {
-      const root = await navigator.storage.getDirectory();
-      const parts = path.split('/').filter(Boolean);
-      let dir = root;
-      for (let i = 0; i < parts.length - 1; i++) {
-        dir = await dir.getDirectoryHandle(parts[i]);
-      }
-      const fileName = parts[parts.length - 1];
-      const file = await dir.getFileHandle(fileName);
-      const blob = await file.getFile();
-      return await blob.text();
-    }
-    async function opfsList(dirPath = '') {
-      const root = await navigator.storage.getDirectory();
-      const parts = dirPath.split('/').filter(Boolean);
-      let dir = root;
-      for (let i = 0; i < parts.length; i++) {
-        dir = await dir.getDirectoryHandle(parts[i]);
-      }
-      const out = [];
-      for await (const [name, handle] of dir.entries()) {
-        out.push(handle.kind === 'directory' ? name + '/' : name);
-      }
-      return out.sort((a, b) => a.localeCompare(b));
-    }
-  </script>
+// OPFS
+async function opfsWrite(path, contents) {
+  const root = await navigator.storage.getDirectory();
+  const parts = path.split('/').filter(Boolean);
+  let dir = root;
+  for (let i = 0; i < parts.length - 1; i++) dir = await dir.getDirectoryHandle(parts[i], { create: true });
+  const fileName = parts[parts.length - 1];
+  const file = await dir.getFileHandle(fileName, { create: true });
+  const writable = await file.createWritable();
+  await writable.write(contents);
+  await writable.close();
+}
+async function opfsRead(path) {
+  const root = await navigator.storage.getDirectory();
+  const parts = path.split('/').filter(Boolean);
+  let dir = root;
+  for (let i = 0; i < parts.length - 1; i++) dir = await dir.getDirectoryHandle(parts[i]);
+  const fileName = parts[parts.length - 1];
+  const file = await dir.getFileHandle(fileName);
+  const blob = await file.getFile();
+  return await blob.text();
+}
+document.getElementById('opfsSaveBtn').addEventListener('click', async () => {
+  const path = opfsPathEl.value.trim();
+  if (!path) return;
+  await opfsWrite(path, editor.value);
+  statusEl.textContent = 'OPFS saved → ' + path;
+});
+document.getElementById('opfsOpenBtn').addEventListener('click', async () => {
+  const path = opfsPathEl.value.trim();
+  if (!path) return;
+  try {
+    editor.value = await opfsRead(path);
+    statusEl.textContent = 'OPFS opened ← ' + path;
+  } catch (e) {
+    statusEl.textContent = 'OPFS open failed';
+  }
+});
+</script>
 </body>
 </html>
