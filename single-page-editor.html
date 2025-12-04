@@ -6,29 +6,38 @@
   <title>Local‑First Text (Edge, Single File)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { margin:0; font-family: system-ui, Segoe UI, Arial; background:#111; color:#eee; }
-    header, footer { padding: 8px 12px; background:#1a1a1a; border-bottom:1px solid #333; }
-    footer { border-top:1px solid #333; border-bottom:none; font-size:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    :root { --chrome:#1a1a1a; --bg:#111; --fg:#eee; --border:#333; --btn:#2a2a2a; }
+    html, body { height:100%; }
+    body { margin:0; font-family: system-ui, Segoe UI, Arial; background:var(--bg); color:var(--fg); }
+    header, footer { padding: 8px 12px; background:var(--chrome); border-bottom:1px solid var(--border); }
+    footer { border-top:1px solid var(--border); border-bottom:none; font-size:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
     .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    button, select, input[type="text"], label { background:#2a2a2a; color:#eee; border:1px solid #444; padding:6px 10px; border-radius:6px; cursor:pointer; }
+    button, select, input[type="text"], label { background:var(--btn); color:var(--fg); border:1px solid #444; padding:6px 10px; border-radius:6px; cursor:pointer; }
     input[type="text"] { min-width: 220px; }
     button:hover, select:hover { background:#333; }
-    #editor { height: calc(100vh - 160px); }
+    #main { height: calc(100vh - 160px); }
+    #editor { height: 100%; width: 100%; position: relative; }  /* Monaco needs a sized container */
+    #fallback { display:none; height:100%; width:100%; box-sizing:border-box; background:#0f0f0f; color:#eee; border:1px solid #444; padding:8px; }
     .status { margin-left:auto; opacity:0.8; }
     .group { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
   </style>
+  <!-- IMPORTANT: the AMD config MUST use 'var require = { ... }' BEFORE loader.js -->
+  <script>
+    // Use var (not const/let), before loading loader.js
+    var require = {
+      paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs' }
+    };
+  </script>
+  https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs/loader.js</script>
 </head>
 <body>
   <header>
     <div class="toolbar">
-      <!-- Real file (disk) -->
       <div class="group">
         <button id="openBtn">Open</button>
         <button id="saveBtn">Save</button>
         <button id="saveAsBtn">Save As…</button>
       </div>
-
-      <!-- Autosave -->
       <label>
         Autosave
         <select id="autosaveMode">
@@ -36,8 +45,6 @@
           <option value="off">Off</option>
         </select>
       </label>
-
-      <!-- Paste control -->
       <label>
         Paste
         <select id="pasteMode">
@@ -46,33 +53,26 @@
           <option value="html-raw">Raw HTML (text)</option>
         </select>
       </label>
-
-      <!-- OPFS -->
       <div class="group">
         <input id="opfsPath" type="text" placeholder="OPFS path e.g. notes/today.md" />
         <button id="opfsSaveBtn">Save to OPFS</button>
         <button id="opfsOpenBtn">Open from OPFS</button>
         <button id="opfsListBtn" title="List root entries">List OPFS</button>
       </div>
-
       <span class="status" id="status">Ready</span>
     </div>
   </header>
 
-  <div id="editor"></div>
+  <div id="main">
+    <div id="editor"></div>
+    <textarea id="fallback" placeholder="Monaco failed to load; using plain textarea."></textarea>
+  </div>
 
   <footer>
     <span id="fileStatus">No file</span>
     <span id="opfsStatus">OPFS: —</span>
     <span class="status" id="quotaStatus">Storage: —</span>
   </footer>
-
-  <!-- Monaco Editor (AMD) -->
-  <script>
-    const MONACO_BASE = "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min";
-    window.require = { paths: { 'vs': MONACO_BASE + '/vs' } };
-  </script>
-  https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs/loader.js</script>
 
   <script>
     let editor;
@@ -91,8 +91,10 @@
     const quotaStatusEl = document.getElementById('quotaStatus');
     const pasteModeEl = document.getElementById('pasteMode');
     const opfsPathEl = document.getElementById('opfsPath');
+    const editorContainer = document.getElementById('editor');
+    const fallbackEl = document.getElementById('fallback');
 
-    /* -------------------- IndexedDB helpers -------------------- */
+    /* ---------- IndexedDB helpers ---------- */
     function idbOpen(dbName, storeName) {
       return new Promise((resolve, reject) => {
         const req = indexedDB.open(dbName, 1);
@@ -125,7 +127,7 @@
       });
     }
 
-    /* -------------------- HTML → Markdown (minimal) -------------------- */
+    /* ---------- HTML → Markdown (minimal) ---------- */
     function htmlToMarkdown(html) {
       const doc = new DOMParser().parseFromString(html, 'text/html');
       function walk(node) {
@@ -153,129 +155,162 @@
       return walk(doc.body).trim();
     }
 
-    /* -------------------- Monaco boot -------------------- */
+    /* ---------- Status helpers ---------- */
     function setStatus(msg) { statusEl.textContent = msg; }
     function setFileStatus(msg) { fileStatusEl.textContent = msg; }
     function setOpfsStatus(msg) { opfsStatusEl.textContent = 'OPFS: ' + msg; }
     function setQuotaStatus(msg) { quotaStatusEl.textContent = 'Storage: ' + msg; }
 
-    require(['vs/editor/editor.main'], async function () {
-      // Open IndexedDB and recover draft
-      dbHandle = await idbOpen(DB_NAME, STORE_NAME);
-      const rec = await idbGet(dbHandle, DRAFT_ID);
-      const initialText = rec?.text || '';
-
-      editor = monaco.editor.create(document.getElementById('editor'), {
-        value: initialText,
-        language: 'markdown',      // 'plaintext' also fine; markdown helps when pasting HTML→MD
-        theme: 'vs-dark',
-        automaticLayout: true,
-        wordWrap: 'on',
-        minimap: { enabled: false }
-      });
-
-      setStatus(initialText ? 'Recovered draft from IndexedDB' : 'Ready');
-
-      // Debounced autosave
-      editor.onDidChangeModelContent(() => {
+    /* ---------- Fallback if Monaco fails ---------- */
+    function bootFallback(text='') {
+      fallbackEl.style.display = 'block';
+      editorContainer.style.display = 'none';
+      fallbackEl.value = text;
+      setStatus('Fallback textarea active');
+      fallbackEl.addEventListener('input', () => {
         if (!autosave) return;
         clearTimeout(autosaveTimer);
         autosaveTimer = setTimeout(async () => {
-          await idbPut(dbHandle, { id: DRAFT_ID, text: editor.getValue(), ts: Date.now() });
-          setStatus('Saved locally · ' + new Date().toLocaleTimeString());
+          await idbPut(dbHandle, { id: DRAFT_ID, text: fallbackEl.value, ts: Date.now() });
+          setStatus('Saved locally (fallback) · ' + new Date().toLocaleTimeString());
         }, 500);
       });
+    }
 
-      // Safeguard on hide/close
-      document.addEventListener('visibilitychange', async () => {
-        if (document.visibilityState === 'hidden') {
-          await idbPut(dbHandle, { id: DRAFT_ID, text: editor.getValue(), ts: Date.now() });
-          setStatus('Saved locally (tab hidden)');
-        }
-      });
+    /* ---------- Boot Monaco ---------- */
+    require(['vs/editor/editor.main'], async function () {
+      try {
+        // Ensure the container has non-zero size
+        const rect = editorContainer.getBoundingClientRect();
+        if (rect.height < 50) editorContainer.style.height = '60vh';
 
-      // Paste interception (container-level)
-      const container = editor.getContainerDomNode();
-      container.addEventListener('paste', (e) => {
-        const mode = pasteModeEl.value;
-        const plain = e.clipboardData?.getData('text/plain') ?? '';
-        const html  = e.clipboardData?.getData('text/html') ?? '';
-        let insertText = plain;
-        if (mode === 'html-raw' && html) insertText = html;
-        if (mode === 'html-md'  && html) insertText = htmlToMarkdown(html);
-        if (insertText) {
-          e.preventDefault();
-          const sel = editor.getSelection();
-          editor.executeEdits('paste', [{ range: sel, text: insertText, forceMoveMarkers: true }]);
-          editor.revealLine(editor.getPosition().lineNumber);
-          setStatus(`Pasted (${mode})`);
-        }
-      });
+        // Open IndexedDB and recover draft
+        dbHandle = await idbOpen(DB_NAME, STORE_NAME);
+        const rec = await idbGet(dbHandle, DRAFT_ID);
+        const initialText = rec?.text || '';
 
-      // Post-paste correction (if preventDefault didn’t take)
-      editor.onDidPaste((evt) => {
-        const mode = pasteModeEl.value;
-        if (mode === 'plain') return;
-        try {
-          const range = evt.range;
-          const pasted = editor.getModel().getValueInRange(range);
-          let replacement = pasted;
-          if (mode === 'html-raw') {
-            const html = evt.clipboardEvent?.clipboardData?.getData('text/html');
-            if (html) replacement = html;
-          } else if (mode === 'html-md') {
-            const html = evt.clipboardEvent?.clipboardData?.getData('text/html');
-            if (html) replacement = htmlToMarkdown(html);
+        // Create Monaco
+        editor = monaco.editor.create(editorContainer, {
+          value: initialText,
+          language: 'markdown',   // set to 'plaintext' if preferred
+          theme: 'vs-dark',
+          automaticLayout: true,
+          wordWrap: 'on',
+          minimap: { enabled: false }
+        });
+
+        setStatus(initialText ? 'Recovered draft from IndexedDB' : 'Ready');
+
+        // Debounced autosave
+        editor.onDidChangeModelContent(() => {
+          if (!autosave) return;
+          clearTimeout(autosaveTimer);
+          autosaveTimer = setTimeout(async () => {
+            await idbPut(dbHandle, { id: DRAFT_ID, text: editor.getValue(), ts: Date.now() });
+            setStatus('Saved locally · ' + new Date().toLocaleTimeString());
+          }, 500);
+        });
+
+        // Save on hide/close
+        document.addEventListener('visibilitychange', async () => {
+          if (document.visibilityState === 'hidden') {
+            await idbPut(dbHandle, { id: DRAFT_ID, text: editor.getValue(), ts: Date.now() });
+            setStatus('Saved locally (tab hidden)');
           }
-          if (replacement !== pasted) {
-            editor.executeEdits('paste-fix', [{ range, text: replacement, forceMoveMarkers: true }]);
-            setStatus(`Adjusted paste → ${mode}`);
+        });
+
+        // Paste interception
+        const container = editor.getContainerDomNode();
+        container.addEventListener('paste', (e) => {
+          const mode = pasteModeEl.value;
+          const plain = e.clipboardData?.getData('text/plain') ?? '';
+          const html  = e.clipboardData?.getData('text/html') ?? '';
+          let insertText = plain;
+          if (mode === 'html-raw' && html) insertText = html;
+          if (mode === 'html-md'  && html) insertText = htmlToMarkdown(html);
+          if (insertText) {
+            e.preventDefault();
+            const sel = editor.getSelection();
+            editor.executeEdits('paste', [{ range: sel, text: insertText, forceMoveMarkers: true }]);
+            editor.revealLine(editor.getPosition().lineNumber);
+            setStatus(`Pasted (${mode})`);
           }
-        } catch { /* some sources don’t expose clipboardEvent; ignore */ }
-      });
+        });
 
-      // Buttons & controls
-      document.getElementById('openBtn').addEventListener('click', openFile);
-      document.getElementById('saveBtn').addEventListener('click', saveFile);
-      document.getElementById('saveAsBtn').addEventListener('click', saveFileAs);
-      document.getElementById('autosaveMode').addEventListener('change', (e) => {
-        autosave = (e.target.value === 'on');
-        setStatus(`Autosave ${autosave ? 'ON' : 'OFF'}`);
-      });
-      document.getElementById('opfsSaveBtn').addEventListener('click', async () => {
-        const path = opfsPathEl.value.trim();
-        if (!path) return setOpfsStatus('enter a path');
-        await opfsWrite(path, editor.getValue());
-        setOpfsStatus('saved → ' + path);
-      });
-      document.getElementById('opfsOpenBtn').addEventListener('click', async () => {
-        const path = opfsPathEl.value.trim();
-        if (!path) return setOpfsStatus('enter a path');
-        try {
-          const text = await opfsRead(path);
-          editor.setValue(text);
-          setOpfsStatus('opened ← ' + path);
-        } catch (e) {
-          setOpfsStatus('open failed: ' + e.message);
+        // Post-paste correction
+        editor.onDidPaste((evt) => {
+          const mode = pasteModeEl.value;
+          if (mode === 'plain') return;
+          try {
+            const range = evt.range;
+            const pasted = editor.getModel().getValueInRange(range);
+            let replacement = pasted;
+            if (mode === 'html-raw') {
+              const html = evt.clipboardEvent?.clipboardData?.getData('text/html');
+              if (html) replacement = html;
+            } else if (mode === 'html-md') {
+              const html = evt.clipboardEvent?.clipboardData?.getData('text/html');
+              if (html) replacement = htmlToMarkdown(html);
+            }
+            if (replacement !== pasted) {
+              editor.executeEdits('paste-fix', [{ range, text: replacement, forceMoveMarkers: true }]);
+              setStatus(`Adjusted paste → ${mode}`);
+            }
+          } catch {}
+        });
+
+        // Controls
+        document.getElementById('openBtn').addEventListener('click', openFile);
+        document.getElementById('saveBtn').addEventListener('click', saveFile);
+        document.getElementById('saveAsBtn').addEventListener('click', saveFileAs);
+        document.getElementById('autosaveMode').addEventListener('change', (e) => {
+          autosave = (e.target.value === 'on');
+          setStatus(`Autosave ${autosave ? 'ON' : 'OFF'}`);
+        });
+        document.getElementById('opfsSaveBtn').addEventListener('click', async () => {
+          const path = opfsPathEl.value.trim();
+          if (!path) return setOpfsStatus('enter a path');
+          await opfsWrite(path, editor.getValue());
+          setOpfsStatus('saved → ' + path);
+        });
+        document.getElementById('opfsOpenBtn').addEventListener('click', async () => {
+          const path = opfsPathEl.value.trim();
+          if (!path) return setOpfsStatus('enter a path');
+          try {
+            const text = await opfsRead(path);
+            editor.setValue(text);
+            setOpfsStatus('opened ← ' + path);
+          } catch (e) {
+            setOpfsStatus('open failed: ' + e.message);
+          }
+        });
+        document.getElementById('opfsListBtn').addEventListener('click', async () => {
+          const list = await opfsList('');
+          setOpfsStatus('root: ' + (list.length ? list.join(', ') : '(empty)'));
+        });
+
+        // Quota/usage
+        if (navigator.storage?.estimate) {
+          try {
+            const est = await navigator.storage.estimate();
+            const usedMB = (est.usage || 0) / (1024 * 1024);
+            const quotaMB = (est.quota || 0) / (1024 * 1024);
+            setQuotaStatus(`${usedMB.toFixed(1)} MB used / ${quotaMB.toFixed(1)} MB quota`);
+          } catch {}
         }
-      });
-      document.getElementById('opfsListBtn').addEventListener('click', async () => {
-        const list = await opfsList('');
-        setOpfsStatus('root: ' + (list.length ? list.join(', ') : '(empty)'));
-      });
-
-      // Show quota/usage (best-effort)
-      if (navigator.storage && navigator.storage.estimate) {
+      } catch (err) {
+        console.error('Monaco failed, enabling fallback:', err);
         try {
-          const est = await navigator.storage.estimate();
-          const usedMB = (est.usage || 0) / (1024 * 1024);
-          const quotaMB = (est.quota || 0) / (1024 * 1024);
-          setQuotaStatus(`${usedMB.toFixed(1)} MB used / ${quotaMB.toFixed(1)} MB quota`);
-        } catch { /* ignore */ }
+          dbHandle = await idbOpen(DB_NAME, STORE_NAME);
+          const rec = await idbGet(dbHandle, DRAFT_ID);
+          bootFallback(rec?.text || '');
+        } catch {
+          bootFallback('');
+        }
       }
     });
 
-    /* -------------------- File System Access (real files) -------------------- */
+    /* ---------- File System Access (Edge/Chromium) ---------- */
     async function openFile() {
       try {
         const [handle] = await window.showOpenFilePicker({
@@ -286,7 +321,7 @@
         fileHandle = handle;
         const file = await fileHandle.getFile();
         const text = await file.text();
-        editor.setValue(text);
+        if (editor) editor.setValue(text); else fallbackEl.value = text;
         setFileStatus('Opened: ' + file.name);
         setStatus('Loaded from disk');
       } catch (e) {
@@ -297,7 +332,7 @@
       try {
         if (!fileHandle) return saveFileAs();
         const writable = await fileHandle.createWritable();
-        await writable.write(editor.getValue());
+        await writable.write(editor ? editor.getValue() : fallbackEl.value);
         await writable.close();
         setStatus('Saved to disk · ' + new Date().toLocaleTimeString());
       } catch (e) {
@@ -318,13 +353,11 @@
       }
     }
 
-    /* -------------------- OPFS (Origin Private File System) -------------------- */
-    // Write text to OPFS at a path like "notes/today.md"
+    /* ---------- OPFS (Origin Private File System) ---------- */
     async function opfsWrite(path, contents) {
       const root = await navigator.storage.getDirectory();
       const parts = path.split('/').filter(Boolean);
       let dir = root;
-      // Create intermediate directories
       for (let i = 0; i < parts.length - 1; i++) {
         dir = await dir.getDirectoryHandle(parts[i], { create: true });
       }
@@ -334,7 +367,6 @@
       await writable.write(contents);
       await writable.close();
     }
-    // Read text from OPFS path
     async function opfsRead(path) {
       const root = await navigator.storage.getDirectory();
       const parts = path.split('/').filter(Boolean);
@@ -347,7 +379,6 @@
       const blob = await file.getFile();
       return await blob.text();
     }
-    // List entries in OPFS directory ('' = root)
     async function opfsList(dirPath = '') {
       const root = await navigator.storage.getDirectory();
       const parts = dirPath.split('/').filter(Boolean);
