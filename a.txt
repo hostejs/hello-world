@@ -1,0 +1,31 @@
+installing Arch https://fastly.mirror.pkgbuild.com/iso/2026.03.01/ or https://archlinux.org/download/
+sudo pacman -Syyu (the extra y ensures the latest indexes are pulled)
+/etc/pacman.conf
+/etc/pacman.d/mirrorlist
+
+echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list 
+wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+sudo apt install google-chrome-stable
+run google-chrome-stable
+
+or download and run from www.google.com/chrome
+
+browsers
+text editors
+desktops/window managers
+terminals
+podman/distrobox
+setup instructions?
+
+saves/exports container
+podman container commit -p <name> image_name:latest
+podman save image_name:latest | gzip > /mnt/.../image_name.tar.gz
+podman load < /mnt/.../image_name.tar.gz
+distrobox create --name <name> --image image_name:latest
+
+distrobox create --image ubuntu:latest --name <name>
+distrobox enter <name>
+
+Downloaded the veracrypt appimage from https://veracrypt.io/en/Downloads.html
+sudo apt install libfuse2t64
+./VeraCrypt-1.26.24-x86_64.AppImage --appimage-extract-and-run
