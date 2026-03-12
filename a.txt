@@ -1,4 +1,6 @@
 installing Arch https://fastly.mirror.pkgbuild.com/iso/2026.03.01/ or https://archlinux.org/download/
+wifi command: iwctl --passphrase <passphrase> station <device|wlan0> connect [SSID|SpectrumSetup-AF]
+
 sudo pacman -Syyu (the extra y ensures the latest indexes are pulled)
 /etc/pacman.conf
 /etc/pacman.d/mirrorlist
