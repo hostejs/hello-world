@@ -3,161 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MLB Deep Scout | Data Aggregator</title>
+    <title>MLB Scout | Box Score & Deep Text</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @media print { .no-print, #rawDumpSection, #keyBtn { display: none; } }
+        @media print { .no-print, #rawDumpSection { display: none; } }
         .game-card { break-inside: avoid; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .data-label { font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans">
 
-    <header class="bg-blue-950 text-white p-6 shadow-xl no-print">
+    <header class="bg-slate-900 text-white p-6 shadow-xl no-print">
         <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-                <h1 class="text-2xl font-black tracking-tighter italic">MLB DEEP SCOUT</h1>
-                <p class="text-blue-400 text-xs font-mono">Status: Connected to StatsAPI v1</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-3">
-                <input type="date" id="datePicker" class="text-slate-900 p-2 rounded border-none font-bold text-sm">
-                <button onclick="fetchGames()" class="bg-sky-500 hover:bg-sky-400 px-6 py-2 rounded-full font-bold transition transform active:scale-95 shadow-lg">Process Date</button>
-                <button id="keyBtn" onclick="clearKey()" class="text-[10px] uppercase border border-blue-700 px-2 py-1 rounded hover:bg-blue-900">Reset AI Key</button>
+            <h1 class="text-xl font-black italic tracking-tighter">MLB<span class="text-sky-400">DATA</span>SCOUT</h1>
+            <div class="flex items-center gap-3">
+                <input type="date" id="datePicker" class="text-slate-900 p-2 rounded font-bold text-sm">
+                <button onclick="fetchGames()" class="bg-sky-500 hover:bg-sky-600 px-6 py-2 rounded font-bold transition">Process</button>
             </div>
         </div>
     </header>
 
     <main class="max-w-6xl mx-auto p-4 md:p-8">
-        <div id="status" class="hidden mb-6 p-4 rounded-lg bg-blue-100 text-blue-800 font-medium text-center animate-pulse">Initializing Data Stream...</div>
-
-        <section id="aiSummarySection" class="hidden mb-12">
-            <h2 class="text-lg font-black text-blue-900 mb-4 flex items-center gap-2">
-                <span class="bg-blue-900 text-white px-2 py-0.5 rounded text-sm">AI</span> EXECUTIVE ANALYSIS
-            </h2>
-            <div id="aiContent" class="bg-white p-8 rounded-2xl shadow-sm border-t-4 border-blue-600 prose prose-slate max-w-none italic leading-relaxed text-slate-700"></div>
-        </section>
+        <div id="status" class="hidden mb-6 p-4 rounded-lg bg-sky-100 text-sky-800 text-center animate-pulse font-bold">Connecting...</div>
 
         <section id="rawDumpSection" class="hidden mb-12">
-            <div class="flex justify-between items-end mb-2">
-                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Raw Data Buffer (Copy this for external AI)</h2>
-                <button onclick="copyRaw()" class="text-xs font-bold text-sky-600 hover:text-sky-800">COPY TO CLIPBOARD</button>
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="data-label">AI Analysis Buffer (Deep Data)</h2>
+                <button onclick="copyRaw()" class="text-xs text-sky-600 font-bold uppercase tracking-tighter">Copy for AI →</button>
             </div>
-            <textarea id="rawTextArea" class="w-full h-40 p-4 text-[10px] font-mono bg-slate-900 text-slate-300 rounded-xl border-none focus:ring-2 focus:ring-sky-500" readonly></textarea>
+            <textarea id="rawTextArea" class="w-full h-48 p-4 text-[11px] font-mono bg-slate-800 text-slate-300 rounded-xl border-none" readonly></textarea>
         </section>
 
-        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Game Board</h2>
-        <div id="gamesContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        <div id="gamesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
     </main>
 
     <script>
         const PROXY = "https://corsproxy.io/?";
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        document.getElementById('datePicker').value = yesterday.toISOString().split('T')[0];
+        // Default to yesterday
+        const d = new Date(); d.setDate(d.getDate() - 1);
+        document.getElementById('datePicker').value = d.toISOString().split('T')[0];
 
-        function clearKey() { localStorage.removeItem('GEMINI_KEY'); location.reload(); }
-        function copyRaw() { document.getElementById('rawTextArea').select(); document.execCommand('copy'); alert("Buffer Copied!"); }
+        function copyRaw() { document.getElementById('rawTextArea').select(); document.execCommand('copy'); alert("Copied to clipboard!"); }
 
         async function fetchGames() {
             const date = document.getElementById('datePicker').value;
-            const status = document.getElementById('status');
             const container = document.getElementById('gamesContainer');
             const rawText = document.getElementById('rawTextArea');
-            const aiSection = document.getElementById('aiSummarySection');
-            const apiKey = localStorage.getItem('GEMINI_KEY');
+            const status = document.getElementById('status');
 
             status.classList.remove('hidden');
             container.innerHTML = '';
-            aiSection.classList.add('hidden');
-            let dataBuffer = `DATE: ${date}\nRAW SCOUTING DATA FOR AI PROCESSING\n====================================\n`;
+            let buffer = `MLB SCOUT REPORT: ${date}\n==============================\n`;
 
             try {
-                const schedUrl = `${PROXY}https://statsapi.mlb.com/api/v1/schedule/games/?sportId=1&startDate=${date}&endDate=${date}&hydrate=probablePitcher,lineups`;
+                // Hydrating linescore for Box Score and probablePitcher for Pre-game
+                const schedUrl = `${PROXY}https://statsapi.mlb.com/api/v1/schedule/games/?sportId=1&startDate=${date}&endDate=${date}&hydrate=probablePitcher,linescore,team`;
                 const schedRes = await fetch(schedUrl);
                 const schedData = await schedRes.json();
 
-                if (!schedData.dates?.[0]) {
-                    status.innerText = "No games found for this date.";
-                    return;
-                }
+                if (!schedData.dates?.[0]) { status.innerText = "No games found."; return; }
 
                 for (const game of schedData.dates[0].games) {
-                    status.innerText = `Hydrating ${game.teams.away.team.name} vs ${game.teams.home.team.name}...`;
-                    
-                    // Fetch Content (Recaps/Previews)
-                    const contentUrl = `${PROXY}https://statsapi.mlb.com/api/v1/game/${game.gamePk}/content`;
-                    const contentRes = await fetch(contentUrl);
-                    const contentData = await contentRes.json();
+                    status.innerText = `Fetching ${game.teams.away.team.name}...`;
 
-                    // Logic to find the best available text
-                    const recap = contentData.editorial?.recap?.home;
-                    const preview = contentData.editorial?.preview?.home;
-                    const longText = recap?.body || preview?.body || "Detailed text unavailable.";
-                    const shortSummary = recap?.summary || preview?.headline || "No summary found.";
-                    
-                    const awayPitcher = game.teams.away.probablePitcher?.fullName || "TBD";
-                    const homePitcher = game.teams.home.probablePitcher?.fullName || "TBD";
+                    // Fetch the Content (The Recap/Preview Text)
+                    const contentRes = await fetch(`${PROXY}https://statsapi.mlb.com/api/v1/game/${game.gamePk}/content`);
+                    const content = await contentRes.json();
 
-                    // Update Data Buffer (The stuff for the AI)
-                    dataBuffer += `\n[MATCHUP]: ${game.teams.away.team.name} @ ${game.teams.home.team.name}\n`;
-                    dataBuffer += `[STATUS]: ${game.status.detailedState} | score: ${game.teams.away.score || 0}-${game.teams.home.score || 0}\n`;
-                    dataBuffer += `[PITCHERS]: ${awayPitcher} vs ${homePitcher}\n`;
-                    dataBuffer += `[RECAP/PREVIEW]: ${longText.replace(/<[^>]*>?/gm, '')}\n`; // Strips HTML tags
-                    dataBuffer += `------------------------------------\n`;
+                    // Fallback Chain for Text: 
+                    // 1. Recap Body -> 2. Preview Body -> 3. Headline/Summary -> 4. SEO Description
+                    const deepText = content.editorial?.recap?.home?.body || 
+                                     content.editorial?.preview?.home?.body || 
+                                     content.editorial?.articles?.items?.[0]?.body ||
+                                     content.editorial?.recap?.home?.summary || "No detailed narrative available for this game yet.";
 
-                    // Card UI
+                    const cleanText = deepText.replace(/<[^>]*>?/gm, ''); // Strips HTML
+
+                    // Box Score Data
+                    const away = game.teams.away;
+                    const home = game.teams.home;
+                    const awayBox = `R:${game.linescore?.teams?.away?.runs || 0} H:${game.linescore?.teams?.away?.hits || 0} E:${game.linescore?.teams?.away?.errors || 0}`;
+                    const homeBox = `R:${game.linescore?.teams?.home?.runs || 0} H:${game.linescore?.teams?.home?.hits || 0} E:${game.linescore?.teams?.home?.errors || 0}`;
+
+                    // Update the AI Buffer
+                    buffer += `\n[GAME]: ${away.team.name} @ ${home.team.name}\n`;
+                    buffer += `[STATUS]: ${game.status.detailedState}\n`;
+                    buffer += `[BOX SCORE]: Away(${awayBox}) | Home(${homeBox})\n`;
+                    buffer += `[PITCHERS]: ${away.probablePitcher?.fullName || 'TBD'} vs ${home.probablePitcher?.fullName || 'TBD'}\n`;
+                    buffer += `[NARRATIVE]: ${cleanText.substring(0, 1500)}...\n`; // Grabs first 1500 chars
+                    buffer += `------------------------------\n`;
+
+                    // Build Card
                     const card = document.createElement('div');
-                    card.className = "game-card bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col";
+                    card.className = "game-card bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col";
                     card.innerHTML = `
-                        <div class="bg-slate-50 p-3 border-b border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400">
-                            <span>${game.status.detailedState.toUpperCase()}</span>
-                            <span>ID: ${game.gamePk}</span>
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-[10px] font-black text-slate-400 uppercase">${game.status.detailedState}</span>
+                            <span class="text-[10px] font-mono text-slate-300">#${game.gamePk}</span>
                         </div>
-                        <div class="p-5 flex-grow">
-                            <div class="flex justify-between items-center mb-4">
-                                <div class="text-center"><p class="text-xs font-bold">${game.teams.away.team.name}</p><p class="text-3xl font-black">${game.teams.away.score ?? '-'}</p></div>
-                                <div class="text-slate-200 font-black text-xl italic">VS</div>
-                                <div class="text-center"><p class="text-xs font-bold">${game.teams.home.team.name}</p><p class="text-3xl font-black">${game.teams.home.score ?? '-'}</p></div>
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="w-2/5 text-center">
+                                <p class="text-xs font-bold truncate">${away.team.name}</p>
+                                <p class="text-3xl font-black">${away.score ?? '-'}</p>
+                                <p class="text-[9px] text-slate-400 font-mono">${awayBox}</p>
                             </div>
-                            <div class="text-[10px] text-slate-500 mb-4 space-y-1">
-                                <p><strong>P:</strong> ${awayPitcher} / ${homePitcher}</p>
+                            <div class="text-slate-200 font-black italic">VS</div>
+                            <div class="w-2/5 text-center">
+                                <p class="text-xs font-bold truncate">${home.team.name}</p>
+                                <p class="text-3xl font-black">${home.score ?? '-'}</p>
+                                <p class="text-[9px] text-slate-400 font-mono">${homeBox}</p>
                             </div>
-                            <p class="text-xs text-slate-600 leading-tight line-clamp-3 italic">${shortSummary}</p>
                         </div>
-                        <a href="https://www.mlb.com/gameday/${game.gamePk}" target="_blank" class="block bg-slate-900 text-white text-center py-2 text-[10px] font-bold hover:bg-sky-600 transition no-print">VIEW GAMEDAY</a>
+                        <div class="border-t pt-3 mt-auto">
+                            <p class="text-[10px] text-slate-500 mb-2"><strong>Starters:</strong> ${away.probablePitcher?.fullName || 'TBD'} / ${home.probablePitcher?.fullName || 'TBD'}</p>
+                            <a href="https://www.mlb.com/gameday/${game.gamePk}" target="_blank" class="block w-full bg-slate-100 text-center py-2 rounded text-[10px] font-bold text-slate-600 hover:bg-sky-500 hover:text-white transition no-print">OPEN GAMEDAY</a>
+                        </div>
                     `;
                     container.appendChild(card);
                 }
 
-                rawText.value = dataBuffer;
+                rawText.value = buffer;
                 document.getElementById('rawDumpSection').classList.remove('hidden');
-
-                // Trigger AI if key exists
-                if (apiKey) {
-                    status.innerText = "Generating Executive Analysis...";
-                    const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: `Act as a senior MLB analyst. Using the provided game recaps and previews, write a daily executive summary. Call out standout individual performances, pitching masterclasses, and preview the key matchups for today. Use professional but engaging sports-journalism tone: ${dataBuffer}` }] }]
-                        })
-                    });
-                    const aiData = await aiRes.json();
-                    if (aiData.candidates) {
-                        document.getElementById('aiContent').innerText = aiData.candidates[0].content.parts[0].text;
-                        aiSection.classList.remove('hidden');
-                    }
-                }
                 status.classList.add('hidden');
 
             } catch (err) {
                 console.error(err);
-                status.innerText = "API Connection Error. Verify CORS Proxy availability.";
-                if(!apiKey) {
-                    const k = prompt("Enter Gemini API Key for Auto-Analysis (Optional):");
-                    if(k) { localStorage.setItem('GEMINI_KEY', k); fetchGames(); }
-                }
+                status.innerText = "Error: API connection lost. Try refreshing.";
             }
         }
     </script>
