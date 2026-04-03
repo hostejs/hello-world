@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLB Daily Recap | AI Optional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print { .no-print { display: none; } #rawDumpSection { display: none; } }
+        .game-card { break-inside: avoid; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-900 font-sans">
+
+    <header class="bg-blue-900 text-white p-6 shadow-lg no-print">
+        <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight">MLB Daily Scout</h1>
+                <p class="text-blue-300 text-xs">Aggregator & Summarizer</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <input type="date" id="datePicker" class="text-slate-900 p-2 rounded border-none outline-none text-sm">
+                <button onclick="fetchGames()" id="btnFetch" class="bg-orange-500 hover:bg-orange-600 px-5 py-2 rounded font-bold transition shadow-md">Run Report</button>
+                <button onclick="clearKey()" class="text-xs bg-blue-800 hover:bg-blue-700 px-2 py-2 rounded">Clear API Key</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto p-4 md:p-8">
+        <div id="status" class="hidden mb-6 p-4 rounded bg-white border-l-4 border-blue-500 text-blue-700 shadow-sm animate-pulse">
+            Processing games...
+        </div>
+
+        <section id="aiSummarySection" class="hidden mb-10">
+            <h2 class="text-xl font-bold border-b-2 border-orange-500 mb-4 pb-1">AI Executive Summary</h2>
+            <div id="aiContent" class="prose prose-slate bg-white p-6 rounded-xl shadow-sm italic text-slate-700 border-l-4 border-orange-500 whitespace-pre-wrap">
+            </div>
+        </section>
+
+        <section id="rawDumpSection" class="hidden mb-10">
+            <div class="flex justify-between items-end mb-2">
+                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest">Raw Data Dump (Manual AI Feed)</h2>
+                <button onclick="copyRaw()" class="text-xs bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded">Copy to Clipboard</button>
+            </div>
+            <textarea id="rawTextArea" class="w-full h-48 p-4 text-xs font-mono bg-slate-800 text-emerald-400 rounded-lg border-none focus:ring-2 focus:ring-orange-500" readonly></textarea>
+        </section>
+
+        <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Individual Game Reports</h2>
+        <div id="gamesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            </div>
+    </main>
+
+    <script>
+        // Default date setup
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        document.getElementById('datePicker').value = yesterday.toISOString().split('T')[0];
+
+        function clearKey() {
+            localStorage.removeItem('GEMINI_KEY');
+            alert("API Key cleared. Next run will be Manual Mode unless you provide a new key.");
+        }
+
+        function copyRaw() {
+            const el = document.getElementById('rawTextArea');
+            el.select();
+            document.execCommand('copy');
+            alert("Copied to clipboard!");
+        }
+
+        async function fetchGames() {
+            const date = document.getElementById('datePicker').value;
+            const status = document.getElementById('status');
+            const container = document.getElementById('gamesContainer');
+            const aiSection = document.getElementById('aiSummarySection');
+            const rawSection = document.getElementById('rawDumpSection');
+            const rawText = document.getElementById('rawTextArea');
+            
+            const apiKey = localStorage.getItem('GEMINI_KEY');
+
+            status.innerText = "Connecting to MLB API...";
+            status.classList.remove('hidden');
+            container.innerHTML = '';
+            aiSection.classList.add('hidden');
+            rawSection.classList.add('hidden');
+
+            try {
+                const proxy = "https://corsproxy.io/?";
+                const schedUrl = `${proxy}https://statsapi.mlb.com/api/v1/schedule/games/?sportId=1&startDate=${date}&endDate=${date}`;
+                const schedRes = await fetch(schedUrl);
+                const schedData = await schedRes.json();
+
+                if (!schedData.dates || !schedData.dates[0]) {
+                    status.innerText = "No games found for this date. Check if the season has started!";
+                    status.classList.remove('animate-pulse');
+                    return;
+                }
+
+                const games = schedData.dates[0].games;
+                let fullTextForAI = `MLB Daily Report for ${date}\n============================\n`;
+
+                for (const game of games) {
+                    const contentUrl = `${proxy}https://statsapi.mlb.com/api/v1/game/${game.gamePk}/content`;
+                    const contentRes = await fetch(contentUrl);
+                    const contentData = await contentRes.json();
+
+                    const headline = contentData.editorial?.recap?.home?.headline || `${game.teams.away.team.name} vs ${game.teams.home.team.name}`;
+                    const summary = contentData.editorial?.recap?.home?.summary || "Summary pending.";
+                    const gameUrl = `https://www.mlb.com/gameday/${game.gamePk}`;
+
+                    fullTextForAI += `\n[GAME]: ${headline}\n[SCORE]: ${game.teams.away.team.name} ${game.teams.away.score}, ${game.teams.home.team.name} ${game.teams.home.score}\n[RECAP]: ${summary}\n----------------------------\n`;
+
+                    // Card UI
+                    const card = document.createElement('div');
+                    card.className = "game-card bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between";
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="px-2 py-1 bg-slate-100 text-[10px] font-bold rounded text-slate-500">${game.status.detailedState}</span>
+                                <a href="${gameUrl}" target="_blank" class="text-blue-500 hover:text-blue-700 text-xs font-bold no-print">GAMEDAY →</a>
+                            </div>
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="text-center w-1/3"><p class="font-bold text-sm">${game.teams.away.team.name}</p><p class="text-2xl font-black">${game.teams.away.score ?? 0}</p></div>
+                                <div class="text-slate-300 font-bold">VS</div>
+                                <div class="text-center w-1/3"><p class="font-bold text-sm">${game.teams.home.team.name}</p><p class="text-2xl font-black">${game.teams.home.score ?? 0}</p></div>
+                            </div>
+                            <p class="text-slate-600 text-sm leading-relaxed mb-4 border-t pt-4 italic">${summary}</p>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                }
+
+                // Fill the raw data dump regardless of AI
+                rawText.value = fullTextForAI;
+                rawSection.classList.remove('hidden');
+
+                // Check for AI Key
+                if (apiKey && apiKey.length > 5) {
+                    status.innerText = "Summarizing with Gemini AI...";
+                    const genAIUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                    
+                    const aiRes = await fetch(genAIUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: `You are a sports journalist. Summarize these MLB games into a single, punchy league-wide update. Use bullet points for key takeaways and a short intro paragraph. Text to process: ${fullTextForAI}` }] }]
+                        })
+                    });
+
+                    const aiData = await aiRes.json();
+                    if (aiData.candidates) {
+                        document.getElementById('aiContent').innerText = aiData.candidates[0].content.parts[0].text;
+                        aiSection.classList.remove('hidden');
+                    }
+                } else {
+                    console.log("No API Key found. Skipping AI summary. Use the Raw Data Dump below.");
+                }
+
+                status.classList.add('hidden');
+
+            } catch (err) {
+                console.error(err);
+                status.innerText = "Error encountered. Likely a CORS or API limit issue.";
+                status.classList.remove('animate-pulse');
+                
+                // Prompt for key only if they didn't have one
+                if(!apiKey) {
+                    const newKey = prompt("Fetch failed or no AI key found. If you want AI summaries, enter your Gemini Key here. Otherwise, leave blank for manual mode:");
+                    if(newKey) {
+                        localStorage.setItem('GEMINI_KEY', newKey);
+                        fetchGames();
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
