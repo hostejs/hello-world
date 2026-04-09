@@ -4,6 +4,7 @@ Updated as of 9/2024
 [URL Export Page](https://hostejs.github.io/hello-world/export.html)  
 [Text Editor Page](https://hostejs.github.io/hello-world/FullPageEditor.html)  
 [HTML Viewer Page](https://hostejs.github.io/hello-world/HtmlViewer.html)
+[Quick Links Page](https://hostejs.github.io/hello-world/QuickLinkTray_Live.html)
 
 [YouTube playlists](https://hostejs.github.io/hello-world/YouTube.html)  
 [Multiplication practice](https://hostejs.github.io/hello-world/multiply.htm)  
