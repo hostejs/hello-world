@@ -1,0 +1,41 @@
+function generateMLBStatsDoc() {
+  const doc = DocumentApp.create('MLB Season Stats Report');
+  const body = doc.getBody();
+
+  // 1. Fetch ALL teams in one single call
+  const allTeamsUrl = "https://statsapi.mlb.com/api/v1/teams?sportId=1";
+  const allTeamsResponse = JSON.parse(UrlFetchApp.fetch(allTeamsUrl).getContentText());
+  const mlbTeams = allTeamsResponse.teams; // This is an array of all 30 teams
+
+  // 2. Loop through the list we just fetched
+  mlbTeams.forEach(team => {
+    const teamId = team.id;
+    const teamName = team.name;
+
+    body.appendParagraph(teamName).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    
+    // 3. Get the roster for THIS specific ID
+    const rosterUrl = `https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?hydrate=person(stats(type=season))`;
+    
+    try {
+      const rosterResponse = JSON.parse(UrlFetchApp.fetch(rosterUrl).getContentText());
+      const players = rosterResponse.roster || [];
+
+      players.forEach(p => {
+        const name = p.person.fullName;
+        const pos = p.position.abbreviation;
+        const stats = p.person.stats ? p.person.stats[0].splits[0].stat : null;
+
+        if (stats) {
+          let line = pos === 'P' 
+            ? `[P] ${stats.wins}-${stats.losses} ${stats.era} GS: ${stats.gamesStarted} GP: ${stats.gamesPitched} CG: ${stats.completeGames} Sho: ${stats.shutouts} IP: ${stats.inningsPitched} SV: ${stats.saves} SO: ${stats.strikeOuts} Per9: ${stats.strikeoutsPer9Inn}`
+            : `[${pos}] ${stats.avg}/${stats.homeRuns}/${stats.rbi} G: ${stats.gamesPlayed} H: ${stats.hits} obp: ${stats.obp} ops: ${stats.ops} slg: ${stats.slg}`;
+          body.appendParagraph(`${name}: ${line}`);
+        }
+      });
+            
+    } catch (e) {
+      console.error(`Error fetching roster for ${teamName}: ${e.message}`);
+    }
+  });
+}
