@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTML / MHTML Loader</title>
+<style>
+  html, body { height: 100%; margin: 0; }
+</style>
+</head>
+<body>
+
+<!-- ===== BEGIN LOADER: copy from here to END LOADER into any page ===== -->
+<html-loader></html-loader>
+<script>
+// Loads a saved .html / .mhtml (Chrome/Edge "Save as") into an editable, isolated area.
+// Everything lives in this one block: no globals, no libraries, no host CSS in or out.
+// API on the element: open(file), getHTML(). Size it from outside (it fills its container).
+(function () {
+  'use strict';
+
+  // <pure>
+  // Splits an MHTML file into decoded parts. Self-contained on purpose: it is also
+  // sent to a worker as source text, so it must not use anything outside itself.
+  function parseMhtml(buf) {
+    var bytes = new Uint8Array(buf);
+    var latin = new TextDecoder('latin1');
+
+    // Header block starts at `from`; returns [where headers end, where body starts].
+    function headerEnd(from, to) {
+      if (bytes[from] === 10) return [from, from + 1];
+      if (bytes[from] === 13 && bytes[from + 1] === 10) return [from, from + 2];
+      for (var i = from; i < to; i++) {
+        if (bytes[i] === 10) {
+          if (bytes[i + 1] === 10) return [i, i + 2];
+          if (bytes[i + 1] === 13 && bytes[i + 2] === 10) return [i, i + 3];
+        }
+      }
+      return [to, to];
+    }
+
+    function parseHeaders(from, to) {
+      var h = {};
+      var lines = latin.decode(bytes.subarray(from, to)).replace(/\r?\n[ \t]+/g, ' ').split(/\r?\n/);
+      for (var i = 0; i < lines.length; i++) {
+        var k = lines[i].indexOf(':');
+        if (k > 0) {
+          var name = lines[i].slice(0, k).trim().toLowerCase();
+          if (!(name in h)) h[name] = lines[i].slice(k + 1).trim();
+        }
+      }
+      return h;
+    }
+
+    var B64 = new Int16Array(256).fill(-1);
+    var ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    for (var a = 0; a < 64; a++) B64[ALPHA.charCodeAt(a)] = a;
+
+    function base64(s, e) {
+      var out = new Uint8Array(((e - s) * 3 >> 2) + 3), n = 0, acc = 0, bits = 0;
+      for (var i = s; i < e; i++) {
+        var v = B64[bytes[i]];
+        if (v < 0) continue;
+        acc = (acc << 6) | v;
+        bits += 6;
+        if (bits >= 8) {
+          bits -= 8;
+          out[n++] = (acc >> bits) & 255;
+          acc &= (1 << bits) - 1;
+        }
+      }
+      return out.subarray(0, n);
+    }
+
+    function hex(c) {
+      if (c >= 48 && c <= 57) return c - 48;
+      if (c >= 65 && c <= 70) return c - 55;
+      if (c >= 97 && c <= 102) return c - 87;
+      return -1;
+    }
+
+    function quotedPrintable(s, e) {
+      var out = new Uint8Array(e - s), n = 0;
+      for (var i = s; i < e; i++) {
+        var c = bytes[i];
+        if (c === 61) {
+          if (bytes[i + 1] === 10) { i += 1; continue; }
+          if (bytes[i + 1] === 13 && bytes[i + 2] === 10) { i += 2; continue; }
+          var hi = hex(bytes[i + 1]), lo = hex(bytes[i + 2]);
+          if (hi >= 0 && lo >= 0) { out[n++] = hi * 16 + lo; i += 2; continue; }
+        }
+        out[n++] = c;
+      }
+      return out.subarray(0, n);
+    }
+
+    function contentType(h) {
+      var v = h['content-type'] || '';
+      var b = /boundary="?([^";]+)"?/i.exec(v), c = /charset="?([^";\s]+)"?/i.exec(v);
+      return { type: v.split(';')[0].trim().toLowerCase(), boundary: b ? b[1] : '', charset: c ? c[1] : '' };
+    }
+
+    function makePart(h, ct, s, e) {
+      var enc = (h['content-transfer-encoding'] || '').trim().toLowerCase();
+      return {
+        type: ct.type || 'application/octet-stream',
+        charset: ct.charset,
+        location: (h['content-location'] || '').trim(),
+        cid: (h['content-id'] || '').trim().replace(/^<|>$/g, ''),
+        bytes: enc === 'base64' ? base64(s, e) : enc === 'quoted-printable' ? quotedPrintable(s, e) : bytes.slice(s, e)
+      };
+    }
+
+    function walk(start, end, out) {
+      var he = headerEnd(start, end), h = parseHeaders(start, he[0]), ct = contentType(h);
+      if (ct.type.indexOf('multipart/') === 0 && ct.boundary) splitParts(he[1], end, ct.boundary, out);
+      else out.push(makePart(h, ct, he[1], end));
+    }
+
+    function splitParts(start, end, boundary, out) {
+      var d = [], text = '--' + boundary;
+      for (var i = 0; i < text.length; i++) d.push(text.charCodeAt(i));
+      var n = d.length;
+
+      function findDelim(from) {
+        var p = from;
+        while (true) {
+          p = bytes.indexOf(45, p);
+          if (p < 0 || p + n > end) return -1;
+          if (p === 0 || bytes[p - 1] === 10) {
+            var k = 1;
+            while (k < n && bytes[p + k] === d[k]) k++;
+            if (k === n) return p;
+          }
+          p++;
+        }
+      }
+
+      var pos = findDelim(start);
+      while (pos >= 0) {
+        if (bytes[pos + n] === 45 && bytes[pos + n + 1] === 45) break;
+        var eol = bytes.indexOf(10, pos + n);
+        if (eol < 0 || eol >= end) break;
+        var partStart = eol + 1, next = findDelim(partStart), partEnd = next < 0 ? end : next;
+        if (next >= 0 && partEnd > partStart && bytes[partEnd - 1] === 10) {
+          partEnd--;
+          if (partEnd > partStart && bytes[partEnd - 1] === 13) partEnd--;
+        }
+        walk(partStart, partEnd, out);
+        pos = next;
+      }
+    }
+
+    var parts = [];
+    walk(0, bytes.length, parts);
+    return parts;
+  }
+
+  // Rewrites url(...) and @import "..." in CSS text. map(ref) returns a new URL or null.
+  function rewriteCssText(text, map) {
+    if (text.indexOf('url(') < 0 && text.indexOf('@import') < 0) return text;
+    return text
+      .replace(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]*))\s*\)/gi, function (m, a, b, c) {
+        var u = map(a || b || c || '');
+        return u ? 'url("' + u + '")' : m;
+      })
+      .replace(/@import\s+(?:"([^"]+)"|'([^']+)')/gi, function (m, a, b) {
+        var u = map(a || b);
+        return u ? '@import "' + u + '"' : m;
+      });
+  }
+  // </pure>
+
+  function decode(u8, charset) {
+    try { return new TextDecoder(charset || 'utf-8').decode(u8); }
+    catch (e) { return new TextDecoder('utf-8').decode(u8); }
+  }
+
+  function decodeHtmlBytes(u8) {
+    var cs = 'utf-8';
+    if (u8[0] === 0xFF && u8[1] === 0xFE) cs = 'utf-16le';
+    else if (u8[0] === 0xFE && u8[1] === 0xFF) cs = 'utf-16be';
+    else {
+      var m = /<meta[^>]+charset\s*=\s*["']?\s*([\w-]+)/i.exec(new TextDecoder('latin1').decode(u8.subarray(0, 2048)));
+      if (m) cs = m[1];
+    }
+    return decode(u8, cs);
+  }
+
+  function isMhtml(head) {
+    var t = new TextDecoder('latin1').decode(head);
+    return /^\s*[A-Za-z][A-Za-z-]*:\s/.test(t) && /multipart\/\w+/i.test(t) && /boundary=/i.test(t);
+  }
+
+  // Worker keeps the window responsive on big files. Falls back to the main thread if
+  // the host page does not allow blob workers.
+  function parseInWorker(buf) {
+    return new Promise(function (resolve, reject) {
+      var w, url;
+      try {
+        url = URL.createObjectURL(new Blob(
+          ['onmessage=function(e){var r=(' + parseMhtml.toString() +
+           ')(e.data);postMessage(r,r.map(function(p){return p.bytes.buffer}))}'],
+          { type: 'text/javascript' }));
+        w = new Worker(url);
+      } catch (e) { reject(e); return; }
+      function done(fn, v) { w.terminate(); URL.revokeObjectURL(url); fn(v); }
+      w.onmessage = function (e) { done(resolve, e.data); };
+      w.onerror = function (e) { done(reject, e); };
+      w.postMessage(buf); // copied, so the original stays usable for the fallback
+    });
+  }
+
+  var URL_ATTRS = {
+    img: ['src', 'srcset'], source: ['src', 'srcset'], video: ['src', 'poster'], audio: ['src'],
+    track: ['src'], input: ['src'], image: ['href', 'xlink:href'], use: ['href', 'xlink:href']
+  };
+  var JS_URL = /^[\s\u0000-\u001f]*javascript:/i;
+
+  // Builds a renderer for one loaded file: resolves references to the file's own parts,
+  // strips anything that can run, and returns the finished page as an HTML string.
+  function createRenderer(parts) {
+    var byKey = new Map(), blobs = new Map(), made = [];
+    parts.forEach(function (p) {
+      if (p.cid) byKey.set('cid:' + p.cid, p);
+      if (p.location) byKey.set(noHash(p.location), p);
+    });
+
+    function noHash(u) { var i = u.indexOf('#'); return i < 0 ? u : u.slice(0, i); }
+
+    function find(ref, base) {
+      ref = (ref || '').trim();
+      if (!ref || ref.charAt(0) === '#' || /^(data|blob|javascript|about):/i.test(ref)) return null;
+      if (/^cid:/i.test(ref)) return byKey.get('cid:' + ref.slice(4).replace(/^<|>$/g, '')) || null;
+      var abs = ref;
+      try { abs = new URL(ref, base || undefined).href; } catch (e) { /* keep as written */ }
+      return byKey.get(noHash(abs)) || byKey.get(noHash(ref)) || null;
+    }
+
+    // Blob URL for a part (CSS is rewritten first so its own url()s point at blobs too).
+    function urlOf(p) {
+      if (blobs.has(p)) return blobs.get(p); // '' while being built (breaks import loops)
+      blobs.set(p, '');
+      var blob = p.type === 'text/css'
+        ? new Blob([rewriteCssText(decode(p.bytes, p.charset), function (r) {
+            var q = find(r, p.location);
+            return q ? urlOf(q) : null;
+          })], { type: 'text/css' })
+        : new Blob([p.bytes], { type: p.type });
+      var u = URL.createObjectURL(blob);
+      blobs.set(p, u);
+      made.push(u);
+      return u;
+    }
+
+    function cssFor(text, base) {
+      return rewriteCssText(text, function (r) {
+        var p = find(r, base);
+        return p ? urlOf(p) : null;
+      });
+    }
+
+    function srcsetFor(v, base) {
+      return v.split(/\s*,\s+/).map(function (c) {
+        var bits = c.trim().split(/\s+/), p = find(bits[0], base);
+        if (p) bits[0] = urlOf(p);
+        return bits.join(' ');
+      }).join(', ');
+    }
+
+    function isHiddenFrame(el) {
+      return el.hidden || el.getAttribute('width') === '0' || el.getAttribute('height') === '0' ||
+        /display\s*:\s*none|visibility\s*:\s*hidden/i.test(el.getAttribute('style') || '');
+    }
+
+    // root is a Document or a DocumentFragment (template contents).
+    function process(root, base, depth) {
+      var junk = root.querySelectorAll('script,noscript,object,embed,applet,base,meta[http-equiv]');
+      for (var i = 0; i < junk.length; i++) junk[i].remove();
+
+      var all = root.querySelectorAll('*'), frames = [];
+      for (i = 0; i < all.length; i++) {
+        var el = all[i], name = el.localName, at = el.attributes, j;
+
+        for (j = at.length - 1; j >= 0; j--) {
+          var n = at[j].name;
+          if (/^on[a-z]+$/i.test(n) || JS_URL.test(at[j].value)) el.removeAttribute(n);
+        }
+
+        if (name === 'iframe') { frames.push(el); continue; }
+        if (name === 'template') process(el.content, base, depth);
+
+        if (name === 'link') {
+          if (!/(^|\s)stylesheet(\s|$)/i.test(el.getAttribute('rel') || '')) { el.remove(); continue; }
+          var p = find(el.getAttribute('href'), base);
+          if (p) el.setAttribute('href', urlOf(p));
+          continue;
+        }
+
+        var list = URL_ATTRS[name];
+        if (list) {
+          if (name === 'img') el.removeAttribute('loading');
+          for (j = 0; j < list.length; j++) {
+            var v = el.getAttribute(list[j]);
+            if (!v) continue;
+            if (list[j] === 'srcset') el.setAttribute('srcset', srcsetFor(v, base));
+            else {
+              var q = find(v, base);
+              if (q) el.setAttribute(list[j], urlOf(q));
+            }
+          }
+        }
+
+        var st = el.getAttribute('style');
+        if (st && st.indexOf('url(') >= 0) el.setAttribute('style', cssFor(st, base));
+      }
+
+      var styles = root.querySelectorAll('style');
+      for (i = 0; i < styles.length; i++) {
+        var t = styles[i].textContent;
+        if (t.indexOf('url(') >= 0 || t.indexOf('@import') >= 0) styles[i].textContent = cssFor(t, base);
+      }
+
+      // Nested frames: keep only ones we hold the content for and that have something to show.
+      for (i = 0; i < frames.length; i++) {
+        var f = frames[i], kept = false;
+        if (depth < 3 && !isHiddenFrame(f)) {
+          var inner = f.getAttribute('srcdoc'), innerBase = base;
+          if (inner === null) {
+            var fp = find(f.getAttribute('src'), base);
+            if (fp && /html/.test(fp.type)) { inner = decode(fp.bytes, fp.charset); innerBase = fp.location || base; }
+          }
+          if (inner !== null) {
+            var r = render(inner, innerBase, depth + 1);
+            if (r.hasContent) {
+              f.removeAttribute('src');
+              f.setAttribute('srcdoc', r.html);
+              kept = true;
+            }
+          }
+        }
+        if (!kept) f.remove();
+      }
+    }
+
+    function render(text, base, depth) {
+      var doc = new DOMParser().parseFromString(text, 'text/html');
+      var b = doc.querySelector('base[href]');
+      if (b) { try { base = new URL(b.getAttribute('href'), base || undefined).href; } catch (e) { /* ignore */ } }
+
+      process(doc, base, depth);
+
+      // Clicks must not navigate away: links open "nowhere" (popups are blocked by the sandbox).
+      var tb = doc.createElement('base');
+      tb.target = '_blank';
+      doc.head.insertBefore(tb, doc.head.firstChild);
+
+      var body = doc.body;
+      if (depth === 0 && body) {
+        body.setAttribute('contenteditable', 'true');
+        body.setAttribute('spellcheck', 'false');
+      }
+      var hasContent = !!body && (body.textContent.trim() !== '' ||
+        !!body.querySelector('img,svg,video,canvas,picture,input,textarea,select,button'));
+      var dt = doc.doctype ? new XMLSerializer().serializeToString(doc.doctype) : '';
+      return { html: dt + doc.documentElement.outerHTML, hasContent: hasContent };
+    }
+
+    return { render: render, urls: made };
+  }
+
+  var CSS =
+    ':host{display:flex;flex-direction:column;width:100%;height:100%;min-height:240px;box-sizing:border-box;' +
+    'color-scheme:light;font:13px system-ui,sans-serif}' +
+    '.bar{flex:none;display:flex;align-items:center;gap:10px;padding:6px 8px;background:#f1f3f4;border-bottom:1px solid #d0d4d7}' +
+    'button{font:inherit;padding:4px 12px;cursor:pointer}' +
+    '.status{color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    'iframe{flex:1;min-height:0;width:100%;border:0;background:#fff}';
+
+  class HtmlLoader extends HTMLElement {
+    constructor() {
+      super();
+      var root = this.attachShadow({ mode: 'open' });
+      root.innerHTML =
+        '<style>' + CSS + '</style>' +
+        '<div class="bar"><button type="button">Open file</button><span class="status"></span></div>' +
+        '<iframe sandbox="allow-same-origin" title="Loaded page"></iframe>' +
+        '<input type="file" hidden accept=".html,.htm,.mhtml,.mht,text/html,message/rfc822">';
+      this._frame = root.querySelector('iframe');
+      this._status = root.querySelector('.status');
+      this._input = root.querySelector('input');
+      this._urls = [];
+      var self = this;
+      root.querySelector('button').addEventListener('click', function () { self._pick(); });
+      this._input.addEventListener('change', function () {
+        var f = self._input.files[0];
+        self._input.value = '';
+        if (f) self.open(f);
+      });
+    }
+
+    _pick() {
+      var self = this;
+      if (!window.showOpenFilePicker) { this._input.click(); return; }
+      window.showOpenFilePicker({
+        startIn: 'downloads',
+        types: [{ description: 'Saved web page', accept: { 'text/html': ['.html', '.htm'], 'message/rfc822': ['.mhtml', '.mht'] } }]
+      }).then(function (handles) {
+        return handles[0].getFile();
+      }).then(function (file) {
+        return self.open(file);
+      }, function (e) {
+        if (e && e.name !== 'AbortError') self._input.click();
+      });
+    }
+
+    async open(file) {
+      var frame = this._frame, status = this._status, t0 = performance.now();
+      status.textContent = 'Loading ' + file.name + '...';
+      try {
+        var buf = await file.arrayBuffer(), t1 = performance.now();
+        await new Promise(function (r) { requestAnimationFrame(function () { setTimeout(r); }); });
+
+        var parts = [], text, base = '';
+        if (isMhtml(new Uint8Array(buf, 0, Math.min(buf.byteLength, 4096)))) {
+          try { parts = await parseInWorker(buf); } catch (e) { parts = parseMhtml(buf); }
+          var rootPart = parts.find(function (p) { return /^text\/html/.test(p.type); });
+          if (!rootPart) throw new Error('no HTML found in this file');
+          text = decode(rootPart.bytes, rootPart.charset);
+          base = rootPart.location;
+        } else {
+          text = decodeHtmlBytes(new Uint8Array(buf));
+        }
+        var t2 = performance.now();
+
+        var renderer = createRenderer(parts), out = renderer.render(text, base, 0), t3 = performance.now();
+
+        await new Promise(function (done) { frame.onload = done; frame.srcdoc = out.html; });
+        this._urls.forEach(function (u) { URL.revokeObjectURL(u); });
+        this._urls = renderer.urls;
+
+        var t4 = performance.now();
+        status.textContent = file.name + ' - ' + Math.round(t4 - t0) + ' ms (read ' + Math.round(t1 - t0) +
+          ', parse ' + Math.round(t2 - t1) + ', build ' + Math.round(t3 - t2) + ', show ' + Math.round(t4 - t3) + ')';
+        this.dispatchEvent(new CustomEvent('load-done', { detail: { ms: t4 - t0 } }));
+      } catch (e) {
+        status.textContent = 'Could not load ' + file.name + ': ' + (e && e.message || e);
+      }
+    }
+
+    // Current content, including edits. Images from an .mhtml are blob: links, so they
+    // only resolve while this page stays open.
+    getHTML() {
+      var d = this._frame.contentDocument;
+      if (!d) return '';
+      return (d.doctype ? new XMLSerializer().serializeToString(d.doctype) : '') + d.documentElement.outerHTML;
+    }
+  }
+
+  if (!customElements.get('html-loader')) customElements.define('html-loader', HtmlLoader);
+})();
+</script>
+<!-- ===== END LOADER ===== -->
+
+</body>
+</html>
