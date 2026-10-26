@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTML / MHTML Loader</title>
+<style>
+  html, body { height: 100%; margin: 0; }
+</style>
+</head>
+<body>
+<div class="file-picker-container">
+  <label for="file-picker">Select an HTML or MHTML file:</label>
+  <input type="file" id="file-picker" />
+</div>
+<script>
+(() => {
+  /**
+   * Reads a raw mobile MHTML / saved HTML document string (or fetches a file),
+   * extracts its core article content, strips away ads, bloat, scripts, and extra markup,
+   * and renders a sleek, mobile-optimized readable view over the browser viewport.
+   *
+   * @param {string|File} source - HTML string, MHTML string, or a File/Blob object.
+   * @param {HTMLElement|string} [targetContainer=document.body] - Container element or selector where the view will be rendered.
+   */
+  async function createMobileReaderView(source, targetContainer = document.body) {
+    let rawContent = '';
+
+    // 1. Get raw string content from input (File/Blob or String)
+    if (source instanceof Blob) {
+      rawContent = await source.text();
+    } else if (typeof source === 'string') {
+      // Check if it's a URL or file path vs raw HTML text
+      if (source.trim().startsWith('http') || source.trim().startsWith('file:')) {
+        const response = await fetch(source);
+        rawContent = await response.text();
+      } else {
+        rawContent = source;
+      }
+    } else {
+      console.error('Invalid source provided. Expected HTML string, URL, or File/Blob object.');
+      return;
+    }
+
+    // 2. Parse HTML string into DOM document
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(rawContent, 'text/html');
+
+    // 3. Extract core metadata and article elements
+    const title = doc.querySelector('title')?.innerText.split('|')[0].trim() || 'Article View';
+    const author = doc.querySelector('meta[name="author"]')?.content || '';
+    
+    // Look for primary content containers commonly used in modern web pages
+    let articleBody = doc.querySelector('.articleWrapper, article, [role="main"], main, .doccontentwrapper');
+    
+    if (!articleBody) {
+      articleBody = doc.body;
+    } else {
+      // Clone so we don't mutate original parsed document unexpectedly
+      articleBody = articleBody.cloneNode(true);
+    }
+
+    // 4. Clean up noise: Ad containers, header/footer elements, empty scripts, navs
+    const unwantedSelectors = [
+      'script', 'style', 'iframe', 'svg', 'header', 'footer', 'nav',
+      '.adthrive-ad', '.google-ad-manager-fallback-container', '[id*="google_ads"]',
+      '[class*="adthrive"]', '#search-form', '.hdr-categories-container',
+      '.icons-topics', '#citationModal0', '.modal', '.breadcrumb', '.print-logo',
+      '#footer', '.back-to-top', '.overlay', '#sub-frame-error'
+    ];
+
+    unwantedSelectors.forEach(selector => {
+      articleBody.querySelectorAll(selector).forEach(node => node.remove());
+    });
+
+    // Clean up empty links and preformatted tags formatting if needed
+    articleBody.querySelectorAll('a').forEach(a => {
+      // Retain text content inside links
+      if (!a.textContent.trim() && !a.querySelector('img')) {
+        a.remove();
+      }
+    });
+
+    // 5. Construct Mobile Reader UI overlay
+    const containerEl = typeof targetContainer === 'string' 
+      ? document.querySelector(targetContainer) 
+      : targetContainer;
+
+    if (!containerEl) {
+      console.error('Target container element not found.');
+      return;
+    }
+
+    // Remove pre-existing reader view if present
+    const existingView = document.getElementById('mobile-reader-overlay');
+    if (existingView) existingView.remove();
+
+    const readerWrapper = document.createElement('div');
+    readerWrapper.id = 'mobile-reader-overlay';
+
+    // Inject Responsive CSS Styles
+    const style = document.createElement('style');
+    style.textContent = `
+      #mobile-reader-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: #fbfbf9;
+        color: #222222;
+        z-index: 999999;
+        overflow-y: auto;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Georgia, serif;
+        line-height: 1.6;
+        box-sizing: border-box;
+        padding: 0;
+        margin: 0;
+      }
+      #mobile-reader-header {
+        sticky: top;
+        position: sticky;
+        top: 0;
+        background: rgba(251, 251, 249, 0.95);
+        backdrop-filter: blur(5px);
+        border-bottom: 1px solid #e2e2e0;
+        padding: 12px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      #mobile-reader-header .reader-brand {
+        font-size: 14px;
+        font-weight: 600;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      #mobile-reader-header button {
+        background: #f0f0ee;
+        border: none;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        color: #333;
+      }
+      #mobile-reader-content {
+        max-width: 680px;
+        margin: 0 auto;
+        padding: 24px 20px 80px 20px;
+      }
+      #mobile-reader-content h1 {
+        font-size: 26px;
+        line-height: 1.3;
+        margin-bottom: 8px;
+        color: #111;
+      }
+      #mobile-reader-content h2 {
+        font-size: 20px;
+        margin-top: 28px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 6px;
+      }
+      #mobile-reader-content h3 {
+        font-size: 17px;
+        margin-top: 20px;
+      }
+      #mobile-reader-content p {
+        font-size: 17px;
+        margin-bottom: 18px;
+        color: #2c2c2c;
+      }
+      #mobile-reader-content pre {
+        background: #f0f0ee;
+        padding: 12px;
+        border-radius: 6px;
+        white-space: pre-wrap;
+        font-family: inherit;
+        font-size: 15px;
+      }
+      #mobile-reader-content blockquote {
+        margin: 18px 0;
+        padding-left: 16px;
+        border-left: 3px solid #ccc;
+        font-style: italic;
+        color: #555;
+      }
+    `;
+
+    // Reader layout structure
+    readerWrapper.innerHTML = `
+      <div id="mobile-reader-header">
+        <span class="reader-brand">Mobile Reader</span>
+        <button id="close-reader-btn" title="Close Reader View">✕</button>
+      </div>
+      <div id="mobile-reader-content">
+        <h1>${title}</h1>
+        ${author ? `<p style="font-size:14px; color:#777;">By ${author}</p>` : ''}
+        <hr style="border:0; border-top:1px solid #e2e2e0; margin: 16px 0 24px 0;" />
+        <div id="reader-body-content"></div>
+      </div>
+    `;
+
+    // Append styles and node into wrapper
+    readerWrapper.appendChild(style);
+    readerWrapper.querySelector('#reader-body-content').appendChild(articleBody);
+
+    // Append view over target container
+    containerEl.appendChild(readerWrapper);
+
+    // Close button handler
+    document.getElementById('close-reader-btn').addEventListener('click', () => {
+      readerWrapper.remove();
+    });
+  }
+
+  // Attach function globally so it can be called explicitly
+  window.createMobileReaderView = createMobileReaderView;
+})();
+const fileInput = document.querySelector('#file-picker');
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  window.createMobileReaderView(file);
+});
+</script>
+
+</body>
+</html>
