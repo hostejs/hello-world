@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%2311161f%22/%3E%3Ctext x=%2216%22 y=%2222%22 text-anchor=%22middle%22 font-family=%22'JetBrains Mono', 'Consolas', monospace%22 font-size=%2218%22 font-weight=%22700%22 fill=%22%23b8860b%22%3E%7B%7D%3C/text%3E%3C/svg%3E">
+    <title>fulltext</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500&display=swap">
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #11161f;
+            --bg-hover: #1b2130;
+            --btn-bg: #000;
+            --text: #e6edf3;
+            --text-dim: #6b6b80;
+            --text-muted: #44445a;
+            --border: rgba(255,255,255,0.07);
+            --border-hover: rgba(255,255,255,0.18);
+            --code-bg: rgba(0,0,0,0.3);
+            --file-link: #9aa4b2;
+            --ok: #4ade80;
+            --err: #f87171;
+            --info: #93c5fd;
+            --popup-top: 56px; /* set from the header's real height in JS */
+            --accent: #b8860b;
+            --accent-dim: rgba(184,134,11,0.15);
+            --accent-border: rgba(184,134,11,0.4);
+            --fs-12: 12px;
+            --fs-13: 13px;
+            --font-ui: Inter, system-ui, sans-serif;
+            --font-mono: "JetBrains Mono", ui-monospace, monospace;
+            /* Typing font. Swap to var(--font-mono) for monospaced. */
+            --font-editor: var(--font-ui);
+            --radius: 4px;
+        }
+
+        /* Light theme: swaps the same tokens, so everything follows */
+        :root[data-theme="light"] {
+            color-scheme: light;
+            --bg: #fff;
+            --bg-hover: #eef0f4;
+            --btn-bg: #fff;
+            --text: #000;
+            --text-dim: #5c6370;
+            --text-muted: #9aa0aa;
+            --border: rgba(0,0,0,0.14);
+            --border-hover: rgba(0,0,0,0.35);
+            --code-bg: rgba(0,0,0,0.06);
+            --file-link: #4b5563;
+            --ok: #15803d;
+            --err: #b91c1c;
+            --info: #1d4ed8;
+        }
+
+        :root[data-font="mono"] { --font-editor: var(--font-mono); }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html, body { margin: 0; }
+
+        [hidden] { display: none !important; }
+
+        body {
+            font-family: var(--font-ui);
+            font-size: var(--fs-12);
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        /* ── HEADER / TOPBAR ── always visible */
+        #header {
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 1px solid var(--border);
+        }
+
+        #topbar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 16px;
+            height: 48px;
+            background: var(--bg);
+        }
+
+            #topbar button {
+                display: inline-flex;
+                align-items: center;
+                font-family: var(--font-ui);
+                font-size: var(--fs-12);
+                color: var(--text);
+                background: var(--btn-bg);
+                border: 1px solid var(--border);
+                border-radius: 5px;
+                padding: 5px 11px;
+                cursor: pointer;
+                white-space: nowrap;
+                transition: background 0.12s, border-color 0.12s, transform 0.08s;
+            }
+
+                #topbar button:hover { background: var(--bg-hover); border-color: var(--border-hover); }
+                #topbar button:active { transform: scale(0.97); }
+                #topbar button svg { margin-right: 5px; flex-shrink: 0; }
+
+        /* Files button doubles as a status readout: gold = file open, green flash = saved */
+        #topbar button#filesBtn.active { background: var(--accent-dim); border-color: var(--accent-border); }
+        #topbar button#filesBtn.saved { background: rgba(22,163,74,0.2); border-color: rgba(22,163,74,0.5); color: var(--ok); }
+
+        .btn-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            margin-left: 6px;
+            animation: dotPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes dotPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+        #status {
+            margin-left: auto;
+            letter-spacing: 0.02em;
+            padding: 3px 10px;
+            border-radius: var(--radius);
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+
+        .status-ok { background: rgba(22,163,74,0.15); color: var(--ok); border-color: rgba(22,163,74,0.3); }
+        .status-error { background: rgba(220,38,38,0.15); color: var(--err); border-color: rgba(220,38,38,0.3); }
+        .status-loading { background: rgba(59,141,248,0.12); color: var(--info); border-color: rgba(59,141,248,0.3); }
+
+        /* ── WORKSPACE ── */
+        #workspace {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        #editor {
+            flex: 1;
+            width: 100%;
+            margin: 0;
+            padding: 0 32px 28px 32px;
+            border: none;
+            border-left: 3px solid transparent;
+            resize: none;
+            outline: none;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-editor);
+            font-size: var(--fs-13);
+            line-height: 1.75;
+            transition: border-color 0.2s;
+        }
+
+            #editor:focus { border-left-color: var(--accent); }
+            #editor::placeholder { color: var(--text-muted); }
+
+        /* ── MARKDOWN PREVIEW (read-only) ── */
+        #preview {
+            flex: 1;
+            padding: 0 32px 28px 32px;
+            font-size: var(--fs-13);
+            line-height: 1.75;
+            overflow-wrap: break-word;
+        }
+
+            #preview a { color: var(--accent); }
+            #preview code, #preview pre { font-family: var(--font-mono); font-size: var(--fs-12); background: var(--code-bg); border-radius: var(--radius); }
+            #preview code { padding: 1px 4px; }
+            #preview pre { padding: 10px 12px; overflow-x: auto; }
+            #preview pre code { padding: 0; background: none; }
+            #preview blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--accent-border); color: var(--text-dim); }
+            #preview table { border-collapse: collapse; }
+            #preview th, #preview td { border: 1px solid var(--border-hover); padding: 4px 8px; }
+            #preview img { max-width: 100%; }
+
+        #previewBar {
+            background: var(--accent-dim);
+            color: var(--accent);
+            padding: 6px 16px;
+            font-family: var(--font-mono);
+            text-align: center;
+            border-bottom: 1px solid var(--accent-border);
+            cursor: pointer;
+        }
+
+        /* ── OVERLAYS ── */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px);
+            /* panel hangs just under the header, top-left */
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: var(--popup-top) 12px 12px;
+            transition: opacity 0.2s ease;
+        }
+
+            .overlay.hidden { opacity: 0; pointer-events: none; }
+
+        .panel {
+            width: min(100%, 520px);
+            max-height: calc(100dvh - var(--popup-top) - 12px);
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            transition: transform 0.25s ease;
+        }
+
+        .overlay.hidden .panel { transform: translateY(20px); }
+
+        .panel-head, .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: var(--fs-12);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        .panel-head { padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+
+        .section { display: flex; flex-direction: column; gap: 8px; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        .btn, .popover button.row {
+            font-family: var(--font-ui);
+            font-size: var(--fs-13);
+            color: var(--text);
+            background: var(--btn-bg);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: background 0.12s, border-color 0.12s;
+        }
+
+            .btn:hover, .popover button.row:hover { background: var(--bg-hover); border-color: var(--border-hover); }
+            .btn.small { font-size: var(--fs-12); padding: 4px 9px; }
+            .btn.danger:hover { border-color: rgba(220,38,38,0.5); color: var(--err); }
+
+        .close-x {
+            font-size: 20px;
+            line-height: 1;
+            color: var(--text-dim);
+            background: transparent;
+            border: none;
+            padding: 4px 10px;
+            cursor: pointer;
+            border-radius: var(--radius);
+        }
+
+            .close-x:hover { color: var(--text); background: var(--bg-hover); }
+
+        /* "Now open" strip */
+        #currentDoc {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px solid var(--accent-border);
+            background: var(--accent-dim);
+            border-radius: var(--radius);
+        }
+
+        #currentDocName { font-family: var(--font-mono); font-size: var(--fs-13); }
+
+        .empty-state { padding: 20px; text-align: center; color: var(--text-dim); font-size: var(--fs-13); }
+
+        /* ── FILE LIST ── */
+        #file-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+
+            #file-list li {
+                position: relative;
+                display: flex;
+                align-items: center;
+                padding: 3px 40px 3px 6px;
+                border-radius: var(--radius);
+                transition: background 120ms ease;
+            }
+
+                #file-list li:hover { background: var(--bg-hover); }
+                #file-list li.is-open { background: var(--accent-dim); }
+                #file-list li.is-open a { color: var(--accent); }
+
+                #file-list li a {
+                    flex: 1;
+                    color: var(--file-link);
+                    text-decoration: none;
+                    font-size: var(--fs-13);
+                    font-family: var(--font-mono);
+                    transition: color 120ms ease;
+                }
+
+                    #file-list li a:hover { color: var(--text); }
+
+        .md-preview-btn {
+            position: absolute;
+            right: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.5;
+        }
+
+            .md-preview-btn:hover { opacity: 1; }
+
+        /* ── CLIP POPOVER ── */
+        .popover {
+            position: fixed;
+            top: var(--popup-top);
+            left: 12px;
+            z-index: 1002;
+            width: min(calc(100vw - 24px), 260px);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 14px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+            .popover.hidden { display: none; }
+
+            .popover button.row { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 10px; border-radius: var(--radius); }
+
+        .row .name { flex: 1; }
+        .row .hint { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--text-dim); }
+
+        @media (max-width: 640px) {
+            #topbar { height: auto; min-height: 48px; flex-wrap: wrap; padding: 8px 10px; gap: 4px; }
+            #topbar button { padding: 5px 8px; font-size: 11px; }
+            #status { width: 100%; margin-left: 0; text-align: center; }
+            #editor, #preview { padding: 16px; }
+        }
+
+        /* Touch screens: bigger tap targets, and 16px text so iOS doesn't zoom on focus */
+        @media (pointer: coarse) {
+            #topbar button, .btn, .popover button.row { min-height: 40px; }
+            .btn.small { min-height: 36px; }
+            .close-x { min-width: 40px; min-height: 40px; }
+            #editor { font-size: 16px; }
+        }
+    </style>
+</head>
+
+<body>
+<div id="header">
+    <div id="topbar">
+        <button id="filesBtn" title="Open a note from your local folder"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg><span class="label">Files</span><span class="btn-dot" hidden></span></button>
+        <button id="clipBtn" title="Convert the clipboard: plain text, Markdown, or raw HTML"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="12" height="16" rx="1"/><path d="M9 5V3h6v2M9 11h6M9 15h6"/></svg>Copy</button>
+        <button id="themeBtn" title="Toggle light / dark"></button>
+        <button id="fontBtn" title="Toggle Inter / monospace"></button>
+        <div id="status"></div>
+    </div>
+</div>
+
+<div id="workspace">
+    <div id="previewBar" hidden>Markdown Preview (read-only) — Click to close</div>
+    <textarea id="editor" spellcheck="false" placeholder="Start writing…"></textarea>
+    <div id="preview" hidden></div>
+</div>
+
+<div id="fileOverlay" class="overlay hidden">
+    <div class="panel">
+        <div class="panel-head">
+            <span>Open</span>
+            <button id="closePanelBtn" class="close-x" title="Close panel">×</button>
+        </div>
+
+        <div id="currentDoc" hidden>
+            <div id="currentDocName"></div>
+            <button id="closeDocBtn" class="btn danger">Close</button>
+        </div>
+
+        <div class="section">
+            <div class="section-head">
+                <span>Local folder</span>
+                <div class="btn-group">
+                    <button id="refreshBtn" class="btn small" title="Re-read the folder">⟳ Refresh</button>
+                    <button id="folderBtn" class="btn small">📁 Folder</button>
+                    <button id="newBtn" class="btn small">➕ New</button>
+                </div>
+            </div>
+            <ul id="file-list"></ul>
+            <div id="file-list-empty" class="empty-state">No folder connected — click <strong>Folder</strong> above to pick one.</div>
+        </div>
+    </div>
+</div>
+
+<div id="clipTool" class="popover hidden">
+    <div class="section-head">
+        <span>Clip</span>
+        <button id="clipToolClose" class="close-x" title="Close">×</button>
+    </div>
+    <button class="row" data-clip="text" title="Strip formatting; keep the plain text"><span class="name">Plain text</span><span class="hint">text/plain</span></button>
+    <button class="row" data-clip="md" title="Convert the HTML on the clipboard to Markdown"><span class="name">Markdown</span><span class="hint">converted</span></button>
+    <button class="row" data-clip="html" title="Put the raw HTML markup on the clipboard as text"><span class="name">Raw HTML</span><span class="hint">as-is</span></button>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const editor = $('editor');
+const BASE_TITLE = document.title;
+
+/* Run an async step; on failure show "<label>: <reason>" and return null (a user cancelling the picker stays silent). */
+async function attempt(label, fn) {
+    try {
+        return await fn();
+    } catch (err) {
+        if (err.name !== 'AbortError') Status.show(`${label}: ${err.message}`, 'error');
+        console.warn(label, err);
+        return null;
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// STATUS  – the message pill in the top bar
+// ════════════════════════════════════════════════════════════
+const Status = {
+    el: $('status'),
+    show(msg, type = '') {
+        this.el.textContent = Files.handle ? `${msg} ** LOCAL (${Files.handle.name})` : msg;
+        this.el.className = type && `status-${type}`;
+    },
+};
+
+// ════════════════════════════════════════════════════════════
+// LOOK  – theme + font toggles (remembered per browser) and popup placement
+// ════════════════════════════════════════════════════════════
+const Look = {
+    root: document.documentElement,
+
+    pref(name, fallback) {
+        try { return localStorage.getItem(name) || fallback; } catch { return fallback; }
+    },
+    savePref(name, value) {
+        try { localStorage.setItem(name, value); } catch { /* storage blocked: toggle still works this session */ }
+    },
+
+    /* Wire a two-state button: `key` is both the data-attribute and the saved pref name. */
+    bindToggle(btn, key, [first, second], labels) {
+        const apply = (value) => {
+            this.root.dataset[key] = value;
+            btn.textContent = labels[value];
+            this.savePref(key, value);
+        };
+        btn.addEventListener('click', () => apply(this.root.dataset[key] === second ? first : second));
+        apply(this.pref(key, first));
+    },
+
+    init() {
+        this.bindToggle($('themeBtn'), 'theme', ['dark', 'light'], { dark: '☾ Dark', light: '☀ Light' });
+        this.bindToggle($('fontBtn'), 'font', ['inter', 'mono'], { inter: 'Inter', mono: 'Mono' });
+
+        // Popups hang just under the header, whatever height it wraps to on narrow screens
+        new ResizeObserver(() => {
+            this.root.style.setProperty('--popup-top', ($('header').offsetHeight + 8) + 'px');
+        }).observe($('header'));
+    },
+};
+
+// ════════════════════════════════════════════════════════════
+// SCRIPTS  – lazy-load CDN libraries once
+// ════════════════════════════════════════════════════════════
+const Scripts = {
+    cache: new Map(), // src -> promise, so rapid double-clicks can't inject a script twice
+
+    load(src) {
+        if (!this.cache.has(src)) {
+            const promise = new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.onload = resolve;
+                s.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+                document.head.appendChild(s);
+            });
+            promise.catch(() => this.cache.delete(src)); // allow a retry after a failure
+            this.cache.set(src, promise);
+        }
+        return this.cache.get(src);
+    },
+};
+
+// ════════════════════════════════════════════════════════════
+// PANEL  – the "Open" file overlay
+// ════════════════════════════════════════════════════════════
+const Panel = {
+    el: $('fileOverlay'),
+    isOpen() { return !this.el.classList.contains('hidden'); },
+    open() { this.el.classList.remove('hidden'); },
+    close() { this.el.classList.add('hidden'); },
+};
+
+// ════════════════════════════════════════════════════════════
+// CLIP  – popover that rewrites the clipboard (plain text / Markdown / raw HTML)
+// ════════════════════════════════════════════════════════════
+const Clip = {
+    el: $('clipTool'),
+    close() { this.el.classList.add('hidden'); },
+    toggle() { this.el.classList.toggle('hidden'); },
+
+    /* Both layers of the clipboard: rich HTML (if any) and plain text. Null if both are empty. */
+    async read() {
+        let html = '', text = '';
+        for (const item of await navigator.clipboard.read()) {
+            if (item.types.includes('text/html')) html = await (await item.getType('text/html')).text();
+            if (item.types.includes('text/plain')) text = await (await item.getType('text/plain')).text();
+        }
+        if (html || text) return { html, text };
+        Status.show('No text or HTML found on clipboard', 'error');
+        return null;
+    },
+
+    actions: {
+        async text() {
+            await navigator.clipboard.writeText(await navigator.clipboard.readText());
+            Status.show('Clipboard converted to Plain Text', 'ok');
+        },
+        async md() {
+            await Scripts.load('https://unpkg.com/turndown@7.2.0/dist/turndown.js');
+            const clip = await Clip.read();
+            if (!clip) return;
+            await navigator.clipboard.writeText(new TurndownService().turndown(clip.html || clip.text));
+            Status.show('Formatted clipboard converted to Markdown', 'ok');
+        },
+        async html() {
+            const clip = await Clip.read();
+            if (!clip) return;
+            await navigator.clipboard.writeText(clip.html || clip.text);
+            Status.show(clip.html ? 'Clipboard converted to raw HTML text' : 'No HTML on clipboard — kept plain text',
+                        clip.html ? 'ok' : 'error');
+        },
+    },
+
+    run(kind) {
+        this.close();
+        return attempt('Clipboard read/write failed', () => this.actions[kind]());
+    },
+};
+
+// ════════════════════════════════════════════════════════════
+// PREVIEW  – read-only rendered view of a .md file, separate from whatever is open
+// ════════════════════════════════════════════════════════════
+const Preview = {
+    el: $('preview'),
+    bar: $('previewBar'),
+    active: false,
+
+    setVisible(on) {
+        this.active = on;
+        editor.hidden = on;
+        this.el.hidden = !on;
+        this.bar.hidden = !on;
+    },
+
+    async show(handle) {
+        await Files.flush();
+        Status.show('Loading preview...', 'loading');
+        const ok = await attempt('Preview failed', async () => {
+            const text = await (await handle.getFile()).text();
+            await Scripts.load('https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js');
+            this.el.innerHTML = marked.parse(text);
+            return true;
+        });
+        if (!ok) return;
+        this.setVisible(true);
+        Panel.close();
+        Status.show(`Previewing ${handle.name}`, 'ok');
+    },
+
+    exit() {
+        if (!this.active) return;
+        this.setVisible(false);
+        this.el.innerHTML = '';
+        Status.show('Preview closed', 'ok');
+    },
+};
+
+// ════════════════════════════════════════════════════════════
+// STORE  – IndexedDB; remembers the chosen folder between visits
+// ════════════════════════════════════════════════════════════
+const Store = {
+    NAME: 'fsHandlesDB',
+    TABLE: 'handles',
+    db: null,
+
+    async open() {
+        this.db ??= await new Promise((resolve, reject) => {
+            const req = indexedDB.open(this.NAME, 1);
+            req.onupgradeneeded = () => req.result.createObjectStore(this.TABLE);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+        return this.db;
+    },
+
+    async run(mode, op) {
+        const table = (await this.open()).transaction(this.TABLE, mode).objectStore(this.TABLE);
+        return new Promise((resolve, reject) => {
+            const req = op(table);
+            req.onsuccess = () => resolve(req.result ?? null);
+            req.onerror = () => reject(req.error);
+        });
+    },
+
+    get(key) { return this.run('readonly', (t) => t.get(key)); },
+    put(key, value) { return this.run('readwrite', (t) => t.put(value, key)); },
+};
+
+// ════════════════════════════════════════════════════════════
+// FILES  – folder access, file list, open / new / close, autosave
+//   State: either a local file is open (handle) or it's just a scratch textarea.
+// ════════════════════════════════════════════════════════════
+const Files = {
+    DIR_KEY: 'local1-dir',
+    RW: { mode: 'readwrite' },
+    SAVE_DELAY_MS: 600,
+
+    handle: null,       // the open file, or null for scratch
+    dirty: false,       // unsaved edits in the editor
+    timer: null,        // debounce timer for autosave
+    queue: Promise.resolve(), // writes run one at a time
+    flashTimer: null,
+
+    btn: $('filesBtn'),
+    list: $('file-list'),
+    listEmpty: $('file-list-empty'),
+
+    // ── folder ──────────────────────────────────────────────
+    async pickDir() {
+        const dir = await window.showDirectoryPicker(this.RW);
+        await Store.put(this.DIR_KEY, dir);
+        return dir;
+    },
+
+    /* The saved folder (asking permission again if needed), or a fresh pick. Null if that fails. */
+    connect() {
+        return attempt('Folder access failed', async () => {
+            const dir = await Store.get(this.DIR_KEY);
+            return dir && (await dir.requestPermission(this.RW)) === 'granted' ? dir : this.pickDir();
+        });
+    },
+
+    async hasAccess(dir) {
+        return !!dir && (await dir.queryPermission(this.RW)) === 'granted';
+    },
+
+    // ── file list ───────────────────────────────────────────
+    row(handle) {
+        const li = document.createElement('li');
+        li.dataset.name = handle.name;
+
+        const a = document.createElement('a');
+        a.href = '#';
+        a.textContent = handle.name;
+        a.addEventListener('click', (e) => { e.preventDefault(); this.open(handle); });
+        li.append(a);
+
+        if (/\.(md|markdown)$/i.test(handle.name)) {
+            const btn = document.createElement('button');
+            btn.className = 'md-preview-btn btn small';
+            btn.textContent = '👁️';
+            btn.title = 'Preview Markdown';
+            btn.addEventListener('click', (e) => { e.stopPropagation(); Preview.show(handle); });
+            li.append(btn);
+        }
+        return li;
+    },
+
+    async render(dir) {
+        const files = [];
+        for await (const entry of dir.values()) if (entry.kind === 'file') files.push(entry);
+        files.sort((a, b) => a.name.localeCompare(b.name));
+        this.list.replaceChildren(...files.map((f) => this.row(f)));
+        this.updateUi();
+    },
+
+    /* Re-read the folder. Without allowPrompt it only reads if permission is already granted. */
+    async refresh(allowPrompt = false) {
+        let dir = await Store.get(this.DIR_KEY);
+        if (!allowPrompt && (await this.hasAccess(dir))) {
+            await this.render(dir);
+            return dir;
+        }
+        if (!allowPrompt && this.list.children.length) return null; // keep showing the last list
+        dir = await this.connect();
+        if (dir) await this.render(dir);
+        return dir;
+    },
+
+    /* On page load: show the list quietly if the folder permission is still granted. */
+    async restore() {
+        const dir = await attempt('Auto-restore failed', () => Store.get(this.DIR_KEY));
+        if (await this.hasAccess(dir)) await this.render(dir);
+    },
+
+    // ── saving ──────────────────────────────────────────────
+    setDirty(value) {
+        this.dirty = value;
+        document.title = (value ? '● ' : '') + BASE_TITLE;
+        this.updateUi();
+    },
+
+    write(handle, content) {
+        const result = this.queue.then(() => attempt('Local save failed', async () => {
+            const writable = await handle.createWritable();
+            await writable.write(content);
+            await writable.close();
+            return true;
+        }));
+        this.queue = result; // attempt() never rejects, so the chain can't break
+        return result;
+    },
+
+    /* Save now. Leaves `dirty` set if the write fails, so callers can tell. */
+    async flush() {
+        clearTimeout(this.timer);
+        if (!this.handle || !this.dirty) return;
+        const handle = this.handle;
+        const content = editor.value;
+        if (!(await this.write(handle, content)) || this.handle !== handle) return;
+
+        if (editor.value === content) this.setDirty(false); // else typed during the write: autosave will run again
+        Status.show('Saved', 'ok');
+        this.btn.classList.add('saved');
+        clearTimeout(this.flashTimer);
+        this.flashTimer = setTimeout(() => this.btn.classList.remove('saved'), 1400);
+    },
+
+    onInput() {
+        if (!this.handle) return;
+        this.setDirty(true);
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => this.flush(), this.SAVE_DELAY_MS);
+    },
+
+    // ── open / close / new ──────────────────────────────────
+    async open(handle) {
+        await this.flush();
+        if (this.dirty) return; // save failed: stay put rather than overwrite unsaved text
+        const text = await attempt('Open failed', async () => (await handle.getFile()).text());
+        if (text === null) return;
+        Preview.exit();
+        editor.value = text;
+        this.handle = handle;
+        this.setDirty(false);
+        Panel.close();
+        Status.show(`Opened ${handle.name}`, 'ok');
+    },
+
+    async close() {
+        if (!this.handle) return;
+        await this.flush();
+        if (this.dirty) return; // save failed: keep the document open so nothing is lost
+        Preview.exit();
+        this.handle = null;
+        editor.value = '';
+        this.setDirty(false);
+        Status.show('Closed — back to scratch', 'ok');
+        Panel.close();
+    },
+
+    async create() {
+        await attempt('Create failed', async () => {
+            const dir = await this.connect();
+            if (!dir) return;
+            let name = prompt('New file name:', 'note.md')?.trim();
+            if (!name) return;
+            if (!/\.[a-z0-9]+$/i.test(name)) name += '.md';
+            const handle = await dir.getFileHandle(name, { create: true });
+            await this.render(dir);
+            await this.open(handle);
+        });
+    },
+
+    // ── UI ──────────────────────────────────────────────────
+    updateUi() {
+        const name = this.handle?.name;
+        this.btn.classList.toggle('active', !!name);
+        this.btn.querySelector('.label').textContent = name ?? 'Files';
+        this.btn.querySelector('.btn-dot').hidden = !this.dirty;
+
+        $('currentDoc').hidden = !name;
+        $('currentDocName').textContent = name ? name + (this.dirty ? ' — unsaved' : '') : '';
+        this.list.querySelectorAll('li').forEach((li) => li.classList.toggle('is-open', li.dataset.name === name));
+        this.listEmpty.hidden = this.list.children.length > 0;
+    },
+};
+
+// ════════════════════════════════════════════════════════════
+// WIRING  – every event listener, in one place
+// ════════════════════════════════════════════════════════════
+editor.addEventListener('input', () => Files.onInput());
+$('previewBar').addEventListener('click', () => Preview.exit());
+
+// Clip popover
+$('clipBtn').addEventListener('click', () => Clip.toggle());
+$('clipToolClose').addEventListener('click', () => Clip.close());
+Clip.el.addEventListener('click', (e) => {
+    const row = e.target.closest('[data-clip]');
+    if (row) Clip.run(row.dataset.clip);
+});
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#clipTool, #clipBtn')) Clip.close();
+});
+
+// File panel
+Files.btn.addEventListener('click', async () => {
+    Panel.open();
+    await attempt('Failed to open file list', () => Files.refresh());
+    Files.updateUi();
+});
+$('closePanelBtn').addEventListener('click', () => Panel.close());
+Panel.el.addEventListener('click', (e) => { if (e.target === Panel.el) Panel.close(); });
+$('closeDocBtn').addEventListener('click', () => Files.close());
+$('newBtn').addEventListener('click', () => Files.create());
+$('folderBtn').addEventListener('click', async () => {
+    const dir = await attempt('Failed to pick folder', () => Files.pickDir());
+    if (!dir) return;
+    await Files.render(dir);
+    Status.show('Folder updated', 'ok');
+});
+$('refreshBtn').addEventListener('click', async () => {
+    const dir = await attempt('Refresh failed', () => Files.refresh(true));
+    if (dir) Status.show('Folder refreshed', 'ok');
+});
+
+// Keyboard + page lifecycle
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    Clip.close();
+    // Escape peels one layer: the file panel first, then the preview
+    if (Panel.isOpen()) Panel.close();
+    else Preview.exit();
+});
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) Files.flush();
+});
+window.addEventListener('beforeunload', (e) => {
+    if (Files.dirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
+// ════════════════════════════════════════════════════════════
+// START
+// ════════════════════════════════════════════════════════════
+Look.init();
+Files.restore();
+Files.updateUi();
+</script>
+</body>
+</html>
