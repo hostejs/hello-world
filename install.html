@@ -51,7 +51,10 @@ var SKIP={SCRIPT:1,NOSCRIPT:1,LINK:1,STYLE:1,TEMPLATE:1};
 var fd,fw,frame,defs={},counts={},pseudo=[],pn=0,SPAN=document.createElement('span');
 var stat={images:0,embedded:0,referenced:0,keptLinks:[],imgEmbedded:0,imgKept:0,imgFailed:[],hosts:{}};
 var faces=[],jobs=[];
-var EMBED_IMAGES=false,EMBED_FONTS=false;
+var EMBED_IMAGES=false,EMBED_FONTS=false,KEEP_UNREADABLE_LINKS=false,BODYD=null;
+var UAATTR=['href','type','dir','hidden','multiple','size','rows','cols','border','align','valign','bgcolor','cellpadding','cellspacing','nowrap','color','face','contenteditable','open','disabled','readonly','checked','popover'];
+var FORM={input:1,select:1,textarea:1,button:1,meter:1,progress:1};
+var PH=['color','opacity','font-family','font-size','font-style','font-weight','letter-spacing','text-transform','text-indent','text-align'];
 var MAXIMG=6000000,MAXTOTAL=45000000;
 var urlRe=/url\(\s*(["']?)((?:https?:|blob:)[^"')]+)\1\s*\)/g;
 
@@ -68,6 +71,7 @@ async function localCheck(name){try{var f=new FontFace('dc-probe','local("'+name
 
 async function viewer(fontCheck){
 var R=JSON.parse(document.getElementById('font-report').textContent);
+try{Array.prototype.forEach.call(document.querySelectorAll('[data-dc-st],[data-dc-sl]'),function(e){e.scrollTop=+e.getAttribute('data-dc-st')||0;e.scrollLeft=+e.getAttribute('data-dc-sl')||0});if(R.scroll)window.scrollTo(R.scroll[0],R.scroll[1])}catch(e){}
 function el(t,css,txt){var e=document.createElement(t);e.style.cssText=css;if(txt!=null)e.textContent=txt;return e}
 function kind(f){
 if(f.kind==='generic')return 'generic family';
@@ -178,13 +182,43 @@ fc.localFirst=fc.source==='origin'}}
 if(fc.embedded)stat.embedded++;else stat.referenced++;
 fc.out=css}))}
 
-function defaults(el){var key=(el.namespaceURI||'')+'|'+el.localName;if(!defs[key]){var e=el.namespaceURI?fd.createElementNS(el.namespaceURI,el.localName):fd.createElement(el.localName);fd.body.appendChild(e);var cs=fw.getComputedStyle(e),o={};for(var i=0;i<cs.length;i++){o[cs[i]]=cs.getPropertyValue(cs[i])}defs[key]=o;fd.body.removeChild(e)}return defs[key]}
-function diff(cs,base,pcs){var out=[];for(var i=0;i<cs.length;i++){var p=cs[i],v=cs.getPropertyValue(p),b=(pcs&&INH.has(p))?pcs.getPropertyValue(p):base[p];if(v!==b)out.push(p+':'+v)}return out.join(';')}
+function snap(cs){var o={};for(var i=0;i<cs.length;i++){o[cs[i]]=cs.getPropertyValue(cs[i])}return o}
+function defaults(el){
+var sig=UAATTR.filter(function(a){return el.hasAttribute(a)}).map(function(a){return a==='href'?'href':a+'='+el.getAttribute(a)}).join('&');
+var key=(el.namespaceURI||'')+'|'+el.localName+'|'+sig;
+if(!defs[key]){
+var e=el.namespaceURI?fd.createElementNS(el.namespaceURI,el.localName):fd.createElement(el.localName);
+UAATTR.forEach(function(a){if(el.hasAttribute(a))e.setAttribute(a,a==='href'?'#':el.getAttribute(a))});
+fd.body.appendChild(e);defs[key]=snap(fw.getComputedStyle(e));fd.body.removeChild(e)}
+return defs[key]}
+function diff(cs,base,pcs,tag){
+if(!BODYD)BODYD=snap(fw.getComputedStyle(fd.body));
+var all=!!FORM[tag],out=[];
+for(var i=0;i<cs.length;i++){var p=cs[i];
+if(p.charAt(0)==='-'&&p.charAt(1)==='-')continue;
+var v=cs.getPropertyValue(p),b=base[p],force=all||p==='box-sizing';
+if(!force&&/-width$/.test(p)&&/^(border|outline|column-rule|row-rule)/.test(p)){var sv=cs.getPropertyValue(p.replace(/-width$/,'-style'));if(sv&&sv!=='none'&&sv!=='hidden')force=true}
+if(!force){
+if(pcs&&INH.has(p)&&base[p]===BODYD[p])b=pcs.getPropertyValue(p);
+if(v===b)continue}
+out.push(p+':'+v)}
+return out.join(';')}
 
 function walk(src,dst,pcs){
 var cs=getComputedStyle(src),tag=src.localName;
-dst.setAttribute('style',diff(cs,defaults(src),pcs));
+dst.setAttribute('style',diff(cs,defaults(src),pcs,tag));
 if(cs.display==='none'){while(dst.firstChild)dst.removeChild(dst.firstChild);return}
+if(tag!=='body'&&tag!=='html'&&/auto|scroll/.test(cs.overflowX+' '+cs.overflowY)){
+var sbw=src.offsetWidth-src.clientWidth-(parseFloat(cs.borderLeftWidth)||0)-(parseFloat(cs.borderRightWidth)||0);
+var sbh=src.offsetHeight-src.clientHeight-(parseFloat(cs.borderTopWidth)||0)-(parseFloat(cs.borderBottomWidth)||0);
+var sw=(sbw>0.5||sbh>0.5)?(Math.max(sbw,sbh)<=10?'thin':null):'none';
+if(sw)dst.setAttribute('style',dst.getAttribute('style')+';scrollbar-width:'+sw);
+if(src.scrollTop)dst.setAttribute('data-dc-st',src.scrollTop);
+if(src.scrollLeft)dst.setAttribute('data-dc-sl',src.scrollLeft)}
+if((tag==='input'||tag==='textarea')&&src.hasAttribute('placeholder')){
+var pp=getComputedStyle(src,'::placeholder'),pid='p'+(pn++);
+dst.setAttribute('data-'+pid,'');
+pseudo.push('[data-'+pid+']::placeholder{'+PH.map(function(k){return k+':'+pp.getPropertyValue(k)}).join(';')+'}')}
 ['::before','::after'].forEach(function(p){var pc=getComputedStyle(src,p),c=pc.content;if(c&&c!=='none'&&c!=='normal'){var id='p'+(pn++);dst.setAttribute('data-'+id,'');pseudo.push('[data-'+id+']'+p+'{'+diff(pc,defaults(SPAN),cs)+'}')}});
 for(var n=src.firstChild;n;n=n.nextSibling){if(n.nodeType===3&&n.nodeValue.trim()){counts[cs.fontFamily]=(counts[cs.fontFamily]||0)+1}}
 ['src','href','poster','action'].forEach(function(a){if(src.hasAttribute(a))dst.setAttribute(a,abs(src.getAttribute(a)))});
@@ -241,11 +275,11 @@ var idx=fams.findIndex(function(f){return f.available});
 stacks.push({stack:fs,count:counts[fs],families:fams,usedIndex:idx,fellBack:idx!==0})}
 stacks.sort(function(a,b){return b.count-a.count});
 
-var report={url:location.href,title:document.title,captured:new Date().toISOString(),viewport:[innerWidth,innerHeight],dpr:devicePixelRatio,ua:navigator.userAgent,generic:GENERIC,stacks:stacks,faces:{embedded:stat.embedded,referenced:stat.referenced},images:{embedded:stat.imgEmbedded,keptAsUrl:stat.imgKept,failedSample:stat.imgFailed.slice(0,10),hosts:stat.hosts},keptSheetLinks:stat.keptLinks};
+var report={url:location.href,title:document.title,captured:new Date().toISOString(),viewport:[innerWidth,innerHeight],dpr:devicePixelRatio,ua:navigator.userAgent,generic:GENERIC,stacks:stacks,faces:{embedded:stat.embedded,referenced:stat.referenced},images:{embedded:stat.imgEmbedded,keptAsUrl:stat.imgKept,failedSample:stat.imgFailed.slice(0,10),hosts:stat.hosts},unreadableSheets:stat.keptLinks,scroll:[scrollX,scrollY]};
 
 var meta=document.createElement('meta');meta.setAttribute('charset','utf-8');head.insertBefore(meta,head.firstChild);
 var st=document.createElement('style');st.textContent=faces.map(function(f){return f.out}).join('\n')+'\n'+pseudo.join('\n');head.appendChild(st);
-stat.keptLinks.forEach(function(h){var l=document.createElement('link');l.rel='stylesheet';l.href=h;head.appendChild(l)});
+if(KEEP_UNREADABLE_LINKS)stat.keptLinks.forEach(function(h){var l=document.createElement('link');l.rel='stylesheet';l.href=h;head.appendChild(l)});
 var js=document.createElement('script');js.type='application/json';js.id='font-report';js.textContent=JSON.stringify(report).replace(/</g,'\\u003c');body.appendChild(js);
 var vs=document.createElement('script');vs.textContent='('+viewer.toString()+')('+fontCheck.toString()+')';body.appendChild(vs);
 var html='<!doctype html>\n'+rootClone.outerHTML;
@@ -256,7 +290,7 @@ a.download=((document.title||'page').replace(/[^\w\- ]+/g,'').trim().slice(0,60)
 document.body.appendChild(a);a.click();a.remove();
 
 var fb=stacks.filter(function(s){return s.fellBack}).length;
-toast('Captured '+Math.round(html.length/1024)+' KB. Images: '+(EMBED_IMAGES?stat.imgEmbedded+' embedded, '+stat.imgKept+' kept as URL':Object.keys(stat.hosts).reduce(function(n,k){return n+stat.hosts[k]},0)+' unique, original sources kept, from '+Object.keys(stat.hosts).length+' host(s)')+'. Fonts: '+stacks.length+' stacks, '+fb+' fell back; font rules '+(EMBED_FONTS?stat.embedded+' embedded, ':'')+stat.referenced+' by URL'+(stat.keptLinks.length?'; kept '+stat.keptLinks.length+' unreadable stylesheet link(s)':'')+'.',false,10000);
+toast('Captured '+Math.round(html.length/1024)+' KB. Images: '+(EMBED_IMAGES?stat.imgEmbedded+' embedded, '+stat.imgKept+' kept as URL':Object.keys(stat.hosts).reduce(function(n,k){return n+stat.hosts[k]},0)+' unique, original sources kept, from '+Object.keys(stat.hosts).length+' host(s)')+'. Fonts: '+stacks.length+' stacks, '+fb+' fell back; font rules '+(EMBED_FONTS?stat.embedded+' embedded, ':'')+stat.referenced+' by URL'+(stat.keptLinks.length?'; '+stat.keptLinks.length+' cross-site stylesheet(s) could not be read'+(KEEP_UNREADABLE_LINKS?' (kept as links)':' (their fonts are not included)'):'')+'.',false,10000);
 }catch(e){
 toast('DOM Capture failed: '+(e&&e.message||e)+'\n'+String(e&&e.stack||'').split('\n').slice(0,3).join('\n'),true);
 }finally{if(frame&&frame.parentNode)frame.parentNode.removeChild(frame)}
