@@ -428,6 +428,15 @@ const $ = (id) => document.getElementById(id);
 const editor = $('editor');
 const BASE_TITLE = document.title;
 
+// Bonus: warn on tab close/reload when unsaved
+window.addEventListener("beforeunload", (e) => {
+    if (editor.value.length > 0){
+        Status.show(`${label}: ${err.message}`, 'error');
+        e.returnValue = '';
+        e.preventDefault();
+    }
+});
+    
 /* Run an async step; on failure show "<label>: <reason>" and return null (a user cancelling the picker stays silent). */
 async function attempt(label, fn) {
     try {
